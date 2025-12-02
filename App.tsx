@@ -1,0 +1,54 @@
+import React, { useState, useEffect } from 'react';
+import { AppProvider, useAppContext } from './context/AppContext';
+import MainApp from './components/MainApp';
+import { UserRole } from './types';
+import Admin from './components/Admin';
+
+const AppContent: React.FC = () => {
+    const { currentUser, language, theme } = useAppContext();
+    const [showSplash, setShowSplash] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setShowSplash(false), 2000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        document.documentElement.lang = language;
+        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [language, theme]);
+
+    if (showSplash) {
+        return <SplashScreen />;
+    }
+
+    if (currentUser?.role === UserRole.ADMIN) {
+        return <Admin />;
+    }
+
+    // Always render MainApp, authentication handled within
+    return <MainApp />;
+};
+
+const SplashScreen: React.FC = () => (
+    <div className="h-screen w-screen flex items-center justify-center bg-dark-bg">
+        <div className="animate-pulse flex flex-col items-center">
+            <h1 className="text-8xl font-black italic tracking-tighter text-brand-green">NY11</h1>
+            <p className="text-white font-sans tracking-[0.3em] text-sm mt-4 opacity-80 uppercase">Healthy Kitchen</p>
+        </div>
+    </div>
+);
+
+
+const App: React.FC = () => (
+    <AppProvider>
+        <AppContent />
+    </AppProvider>
+);
+
+export default App;
