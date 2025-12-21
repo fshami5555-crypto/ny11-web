@@ -337,7 +337,7 @@ const MainApp: React.FC = () => {
             </main>
 
             {/* Floating AI Chat Button */}
-            <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end">
+            <div className={`fixed bottom-8 ${language === 'ar' ? 'left-8' : 'right-8'} z-50 flex flex-col items-end`}>
                 {isAIChatOpen && (
                     <div className="mb-4 w-screen max-w-[400px] h-[500px] shadow-2xl animate-slide-up max-sm:fixed max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:w-full max-sm:h-[80vh] max-sm:rounded-t-3xl max-sm:overflow-hidden">
                         <ChatView 
@@ -351,22 +351,29 @@ const MainApp: React.FC = () => {
                         />
                     </div>
                 )}
-                <button 
-                    onClick={handleAIChatToggle}
-                    className="w-14 h-14 md:w-16 md:h-16 bg-brand-green text-white rounded-full shadow-glow flex items-center justify-center hover:scale-110 transition-transform group"
-                >
-                    {isAIChatOpen ? (
-                        <i className="o-x-mark text-2xl"></i>
-                    ) : (
-                        <div className="relative">
-                            <i className="o-chat-bubble-left-right text-2xl"></i>
-                            <span className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                
+                <div className="flex items-center group">
+                    {/* Visible label text that appears near the button */}
+                    {!isAIChatOpen && (
+                         <div className={`hidden md:flex bg-white dark:bg-dark-card border border-brand-green/30 px-4 py-2 rounded-full mr-3 rtl:mr-0 rtl:ml-3 shadow-lg transform transition-all duration-300 group-hover:scale-105 group-hover:bg-brand-green group-hover:text-white`}>
+                            <p className="text-xs font-black tracking-tight uppercase whitespace-nowrap">{t.aiNutritionist}</p>
                         </div>
                     )}
-                    <span className="absolute right-20 bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block shadow-md">
-                        {t.aiNutritionist}
-                    </span>
-                </button>
+                    
+                    <button 
+                        onClick={handleAIChatToggle}
+                        className={`w-14 h-14 md:w-16 md:h-16 bg-brand-green text-white rounded-full shadow-glow flex items-center justify-center hover:scale-110 transition-transform relative`}
+                    >
+                        {isAIChatOpen ? (
+                            <i className="o-x-mark text-2xl"></i>
+                        ) : (
+                            <div className="relative">
+                                <i className="o-chat-bubble-left-right text-2xl"></i>
+                                <span className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                            </div>
+                        )}
+                    </button>
+                </div>
             </div>
             
             <Footer />

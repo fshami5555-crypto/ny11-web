@@ -124,7 +124,7 @@ export const TRANSLATIONS = {
     delete: 'Delete',
     cancel: 'Cancel',
     saveChanges: 'Save Changes',
-    aiNutritionist: 'AI Nutritionist',
+    aiNutritionist: 'NY11 AI Coach',
 
     // Landing Page
     aboutUsTitle: 'About ny11',
@@ -377,7 +377,7 @@ export const TRANSLATIONS = {
     delete: 'حذف',
     cancel: 'إلغاء',
     saveChanges: 'حفظ التغييرات',
-    aiNutritionist: 'خبير التغذية الذكي',
+    aiNutritionist: 'مدرب NY11 الذكي',
 
     // Landing Page
     aboutUsTitle: 'من نحن - ny11',
