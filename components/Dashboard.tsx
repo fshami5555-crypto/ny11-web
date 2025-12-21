@@ -1,46 +1,42 @@
+
+
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, addDays, subDays } from 'date-fns';
 import { DailyPlan, Meal, Exercise, User, Goal } from '../types';
 
 const HeroLanding: React.FC = () => {
-    const { translations, language, setIsLanguageSelected, loginAsGuest } = useAppContext();
+    const { translations, language, setIsLanguageSelected, loginAsGuest, siteConfig } = useAppContext();
     const t = translations[language];
 
     const handleGetStarted = () => {
         setIsLanguageSelected(true);
         loginAsGuest();
-        // Trigger auth modal via global event or context if simpler, 
-        // but for now user clicks login on navbar or explores as guest
-        // If guest mode logic in AppContext sets currentUser to guest, this updates the view.
     }
 
     return (
-        <div className="bg-white dark:bg-dark-card rounded-3xl overflow-hidden shadow-2xl mb-12 animate-fade-in relative">
-             <div className="absolute inset-0 bg-gradient-to-r from-brand-green/20 to-transparent pointer-events-none"></div>
-             <div className="grid md:grid-cols-2 gap-8 items-center p-8 md:p-16 relative z-10">
-                <div className="space-y-6">
-                    <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white leading-tight">
-                        {t.heroTitle}
-                    </h1>
-                    <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-                        {t.heroSubtitle}
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                        <button className="bg-brand-green text-brand-green-dark px-8 py-4 rounded-full font-bold text-lg hover:shadow-lg hover:scale-105 transition transform">
-                            {t.getStarted}
-                        </button>
-                         <button className="px-8 py-4 rounded-full font-bold text-lg border-2 border-gray-200 dark:border-gray-700 hover:border-brand-green dark:hover:border-brand-green hover:text-brand-green transition">
-                            {t.about}
-                        </button>
-                    </div>
-                </div>
-                <div className="hidden md:block relative h-96">
-                     <img 
-                        src="https://images.unsplash.com/photo-1498837167922-ddd27525d352?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" 
-                        alt="Healthy Food" 
-                        className="absolute inset-0 w-full h-full object-cover rounded-2xl shadow-xl transform rotate-3 hover:rotate-0 transition duration-500"
-                    />
+        <div className="relative rounded-[3rem] overflow-hidden shadow-2xl mb-16 animate-fade-in group">
+             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 z-10"></div>
+             <img 
+                src={siteConfig.heroImage} 
+                alt="Healthy Lifestyle" 
+                className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition duration-1000"
+            />
+             
+             <div className="relative z-20 flex flex-col justify-center items-center h-[500px] text-center px-6">
+                <span className="inline-block py-1 px-4 rounded-full bg-brand-green/90 backdrop-blur-md text-white text-xs font-bold uppercase tracking-widest mb-4 animate-slide-up">
+                    Healthy Kitchen
+                </span>
+                <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-6 drop-shadow-lg max-w-4xl animate-slide-up" style={{animationDelay: '0.1s'}}>
+                    {t.heroTitle}
+                </h1>
+                <p className="text-lg md:text-xl text-gray-100 max-w-2xl mb-8 leading-relaxed font-medium animate-slide-up" style={{animationDelay: '0.2s'}}>
+                    {t.heroSubtitle}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{animationDelay: '0.3s'}}>
+                    <button onClick={handleGetStarted} className="bg-white text-brand-green-dark px-10 py-4 rounded-full font-bold text-lg hover:bg-brand-green hover:text-white transition-all duration-300 shadow-glow hover:shadow-glow-sm transform hover:-translate-y-1">
+                        {t.getStarted}
+                    </button>
                 </div>
              </div>
         </div>
@@ -52,54 +48,82 @@ const MealDetailModal: React.FC<{ meal: Meal; onClose: () => void }> = ({ meal, 
     const t = translations[language];
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-dark-card rounded-lg shadow-xl w-full max-w-sm m-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <img src={meal.image || 'https://picsum.photos/400/300'} alt={meal.name} className="w-full h-48 object-cover" />
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{meal.name}</h2>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">{meal.description || 'No description available.'}</p>
-                    <div className="flex justify-between items-center text-brand-green dark:text-brand-green-light">
-                        <span className="font-semibold">{t.calories}</span>
-                        <span className="font-bold text-lg">{meal.calories} kcal</span>
-                    </div>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 animate-fade-in p-4" onClick={onClose}>
+            <div className="glass-card rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all scale-100" onClick={(e) => e.stopPropagation()}>
+                <div className="relative h-64">
+                     <img src={meal.image || 'https://picsum.photos/400/300'} alt={meal.name} className="w-full h-full object-cover" />
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                     <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/40 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                     </button>
+                     <div className="absolute bottom-4 left-6">
+                        <span className="bg-brand-green text-white text-xs font-bold px-3 py-1 rounded-full mb-2 inline-block">Meal</span>
+                        <h2 className="text-3xl font-bold text-white leading-none">{meal.name}</h2>
+                     </div>
                 </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700">
-                    <button onClick={onClose} className="w-full bg-brand-green text-brand-green-dark py-2 rounded-lg font-semibold hover:opacity-90 transition">{t.close}</button>
+                
+                <div className="p-8">
+                    <p className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed">{meal.description || 'No description available.'}</p>
+                    <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                        <span className="font-semibold text-gray-500 dark:text-gray-400">{t.calories}</span>
+                        <span className="font-black text-2xl text-brand-green">{meal.calories} <span className="text-sm text-gray-400 font-normal">kcal</span></span>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-const ProfileCard: React.FC = () => {
+const ProfileBento: React.FC = () => {
     const { currentUser, language, translations } = useAppContext();
     const t = translations[language];
+
+    // Calculate BMI for fun stats
+    const bmi = (currentUser?.weight && currentUser?.height) 
+        ? (currentUser.weight / ((currentUser.height / 100) ** 2)).toFixed(1)
+        : '--';
+
     return (
-        <div className="bg-brand-green-dark text-white p-8 rounded-3xl shadow-lg mb-8 animate-fade-in relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <h1 className="text-9xl font-black italic">NY11</h1>
-            </div>
-            <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
-                <img src={currentUser?.avatar || `https://i.pravatar.cc/150?u=${currentUser?.id}`} className="w-20 h-20 rounded-full border-4 border-brand-green" alt="Profile"/>
-                <div className="flex-1 text-center md:text-left rtl:md:text-right">
-                    <h2 className="text-3xl font-bold text-brand-green mb-1">{currentUser?.name}</h2>
-                    <p className="text-gray-300 mb-4">{currentUser?.email}</p>
-                    <div className="flex justify-center md:justify-start rtl:md:justify-end gap-8 mt-4">
-                        <div className="text-center">
-                            <p className="text-sm opacity-80 uppercase tracking-wide">{t.age}</p>
-                            <p className="font-bold text-2xl">{currentUser?.age || 'N/A'}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm opacity-80 uppercase tracking-wide">{t.weight}</p>
-                            <p className="font-bold text-2xl">{currentUser?.weight ? `${currentUser.weight} kg` : 'N/A'}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm opacity-80 uppercase tracking-wide">{t.height}</p>
-                            <p className="font-bold text-2xl">{currentUser?.height ? `${currentUser.height} cm` : 'N/A'}</p>
-                        </div>
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+             {/* Profile Main Card */}
+            <div className="bg-gradient-to-br from-brand-green-dark to-[#0f2918] text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                <div className="absolute top-[-20px] right-[-20px] w-40 h-40 bg-brand-green rounded-full blur-[60px] opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
+                
+                <div className="relative z-10 flex flex-col items-center text-center">
+                    <div className="relative mb-4">
+                        <img src={currentUser?.avatar || `https://i.pravatar.cc/150?u=${currentUser?.id}`} className="w-24 h-24 rounded-full border-4 border-white/20 shadow-lg object-cover" alt="Profile"/>
+                        <div className="absolute bottom-0 right-0 w-6 h-6 bg-brand-green rounded-full border-4 border-brand-green-dark"></div>
+                    </div>
+                    <h2 className="text-2xl font-bold mb-1">{currentUser?.name}</h2>
+                    <p className="text-white/60 text-sm mb-6 bg-white/10 px-3 py-1 rounded-full">{currentUser?.email}</p>
+                    
+                    <div className="grid grid-cols-3 gap-4 w-full">
+                         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 flex flex-col justify-center">
+                            <span className="text-xs text-white/60 uppercase tracking-wider">{t.age}</span>
+                            <span className="text-xl font-bold">{currentUser?.age || '-'}</span>
+                         </div>
+                         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 flex flex-col justify-center">
+                            <span className="text-xs text-white/60 uppercase tracking-wider">{t.weight}</span>
+                            <span className="text-xl font-bold">{currentUser?.weight || '-'} <span className="text-xs font-normal">kg</span></span>
+                         </div>
+                         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 flex flex-col justify-center">
+                            <span className="text-xs text-white/60 uppercase tracking-wider">{t.height}</span>
+                            <span className="text-xl font-bold">{currentUser?.height || '-'} <span className="text-xs font-normal">cm</span></span>
+                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* BMI / Goal Card */}
+             <div className="bg-white dark:bg-dark-card p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Current Goal</p>
+                    <p className="text-gray-800 dark:text-white font-bold text-lg capitalize">{currentUser?.goal?.replace('_', ' ') || 'Maintenance'}</p>
+                </div>
+                <div className="w-16 h-16 rounded-full border-4 border-brand-green flex items-center justify-center">
+                    <span className="text-brand-green font-bold text-sm">BMI {bmi}</span>
+                </div>
+             </div>
         </div>
     );
 };
@@ -108,19 +132,23 @@ const PlanItem: React.FC<{ item: Meal | Exercise; onToggle: () => void, isRtl: b
     const isExercise = 'duration' in item || 'reps' in item;
 
     const content = (
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-dark-card rounded-xl mb-3 shadow-sm hover:shadow-md transition-shadow duration-200 w-full border border-gray-100 dark:border-gray-800">
+        <div className={`group flex items-center justify-between p-4 rounded-2xl mb-3 transition-all duration-300 w-full border ${item.completed ? 'bg-brand-green/10 border-transparent' : 'bg-gray-50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800 hover:shadow-md'}`}>
             <div className="flex items-center">
-                <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${item.completed ? 'bg-brand-green border-brand-green' : 'border-gray-300 dark:border-gray-600 hover:border-brand-green'}`}>
-                    {item.completed && <i className="o-check text-brand-green-dark text-sm font-bold"></i>}
+                <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${item.completed ? 'bg-brand-green scale-110' : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-gray-300'}`}>
+                    {item.completed && <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                 </button>
                 <div className={`mx-4 ${isRtl ? 'text-right' : 'text-left'}`}>
-                    <p className={`font-semibold text-gray-800 dark:text-dark-text ${item.completed ? 'line-through opacity-60' : ''}`}>{item.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className={`font-bold text-gray-800 dark:text-white text-base ${item.completed ? 'line-through opacity-50' : ''}`}>{item.name}</p>
+                    <p className="text-xs font-medium text-brand-green mt-0.5">
                         {isExercise ? (item as Exercise).duration || (item as Exercise).reps : `${(item as Meal).calories} kcal`}
                     </p>
                 </div>
             </div>
-            {!isExercise && <i className={`o-chevron-left text-gray-400 ${isRtl ? '' : 'transform rotate-180'}`}></i>}
+            {!isExercise && !item.completed && (
+                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+                     <i className={`o-chevron-right ${isRtl && 'rotate-180'}`}></i>
+                </div>
+            )}
         </div>
     );
 
@@ -156,38 +184,51 @@ const DailyPlanView: React.FC = () => {
         updateDailyPlan(dateKey, newDailyPlan);
     };
     
-    const sections: { title: string, key: keyof DailyPlan }[] = [
-        { title: t.breakfast, key: "breakfast" },
-        { title: t.lunch, key: "lunch" },
-        { title: t.dinner, key: "dinner" },
-        { title: t.snacks, key: "snacks" },
-        { title: t.exercises, key: "exercises" },
+    const sections: { title: string, key: keyof DailyPlan, icon: string }[] = [
+        { title: t.breakfast, key: "breakfast", icon: '☀️' },
+        { title: t.lunch, key: "lunch", icon: '🍲' },
+        { title: t.dinner, key: "dinner", icon: '🌙' },
+        { title: t.snacks, key: "snacks", icon: '🍎' },
+        { title: t.exercises, key: "exercises", icon: '🔥' },
     ];
     
     return (
-         <div id="tour-daily-plan" className="animate-slide-up bg-white/50 dark:bg-dark-card/30 rounded-3xl p-6 md:p-8">
-            <div className="flex justify-between items-center mb-8">
-                <button onClick={() => setCurrentDate(subDays(currentDate, 1))} className="p-3 bg-white dark:bg-dark-card rounded-full shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition"><i className={`o-chevron-left ${isRtl && 'transform rotate-180'}`}></i></button>
-                <div className="text-center">
-                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">{t.todaysPlan}</p>
-                     <h2 className="text-2xl font-bold text-gray-800 dark:text-dark-text">{format(currentDate, 'EEEE, MMM d')}</h2>
+        <div className="col-span-12 lg:col-span-8">
+            <div className="glass-card rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-full">
+                {/* Date Navigation */}
+                <div className="flex justify-between items-center mb-10 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-full">
+                    <button onClick={() => setCurrentDate(subDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`o-chevron-left ${isRtl && 'transform rotate-180'}`}></i></button>
+                    <div className="text-center">
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">{t.todaysPlan}</p>
+                        <h2 className="text-xl font-black text-gray-800 dark:text-white">{format(currentDate, 'EEEE, MMM d')}</h2>
+                    </div>
+                    <button onClick={() => setCurrentDate(addDays(currentDate, 1))} className="w-10 h-10 bg-white dark:bg-dark-card rounded-full shadow-sm hover:text-brand-green transition flex items-center justify-center"><i className={`o-chevron-right ${isRtl && 'transform rotate-180'}`}></i></button>
                 </div>
-                <button onClick={() => setCurrentDate(addDays(currentDate, 1))} className="p-3 bg-white dark:bg-dark-card rounded-full shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition"><i className={`o-chevron-right ${isRtl && 'transform rotate-180'}`}></i></button>
-            </div>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {sections.map(section => (
-                    (dailyPlan[section.key] && dailyPlan[section.key].length > 0) && (
-                        <div key={section.key} className="bg-white/60 dark:bg-dark-card/50 rounded-2xl p-4">
-                            <h3 className="font-bold text-lg mb-4 text-brand-green-dark dark:text-brand-green px-2 border-l-4 border-brand-green rtl:border-l-0 rtl:border-r-4 rtl:pr-2">{section.title}</h3>
-                            <div className="space-y-2">
-                                {dailyPlan[section.key].map((item, index) => (
-                                   <PlanItem key={index} item={item} onToggle={() => handleToggleItem(section.key, index)} isRtl={isRtl} onMealClick={setSelectedMeal} />
-                                ))}
+                
+                <div className="grid md:grid-cols-2 gap-x-8 gap-y-10">
+                    {sections.map(section => (
+                        (dailyPlan[section.key] && dailyPlan[section.key].length > 0) && (
+                            <div key={section.key} className="relative">
+                                <div className="flex items-center mb-4 space-x-2 rtl:space-x-reverse">
+                                    <span className="text-2xl">{section.icon}</span>
+                                    <h3 className="font-bold text-xl text-gray-800 dark:text-white">{section.title}</h3>
+                                </div>
+                                <div className="pl-2 rtl:pl-0 rtl:pr-2 border-l-2 rtl:border-l-0 rtl:border-r-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    <div className="pl-4 rtl:pr-4">
+                                        {dailyPlan[section.key].map((item, index) => (
+                                        <PlanItem key={index} item={item} onToggle={() => handleToggleItem(section.key, index)} isRtl={isRtl} onMealClick={setSelectedMeal} />
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
+                        )
+                    ))}
+                    {Object.values(dailyPlan).every((arr: any) => arr.length === 0) && (
+                        <div className="col-span-2 py-10 text-center text-gray-400">
+                            <p>No plan generated for this day.</p>
                         </div>
-                    )
-                ))}
+                    )}
+                </div>
             </div>
             {selectedMeal && <MealDetailModal meal={selectedMeal} onClose={() => setSelectedMeal(null)} />}
         </div>
@@ -242,44 +283,57 @@ const ProfileSetup: React.FC<{ onComplete: (data: Partial<User>) => void }> = ({
         switch (step) {
             case 1:
                 return (
-                    <div className="bg-white dark:bg-dark-card p-10 rounded-3xl shadow-xl text-center animate-fade-in w-full max-w-md mx-auto">
-                        <h3 className="text-3xl font-bold mb-6 dark:text-white">{t.whatsYourAge}</h3>
-                        <input type="number" name="age" value={profileData.age} onChange={handleInputChange} className="w-full p-4 text-center text-2xl rounded-xl border dark:bg-gray-800 dark:border-gray-700 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none transition" placeholder={t.agePlaceholder} autoFocus />
-                        <button onClick={nextStep} className="w-full bg-brand-green text-brand-green-dark mt-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg">{t.next}</button>
+                    <div className="glass-card p-10 rounded-[3rem] shadow-glow-sm text-center animate-fade-in w-full max-w-md mx-auto">
+                        <span className="text-4xl mb-4 block">🎂</span>
+                        <h3 className="text-3xl font-black mb-2 dark:text-white">{t.whatsYourAge}</h3>
+                        <p className="text-gray-500 mb-8">{t.ageInfo}</p>
+                        <input type="number" name="age" value={profileData.age} onChange={handleInputChange} className="w-full p-6 text-center text-4xl font-bold rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-brand-green outline-none transition mb-8" placeholder="00" autoFocus />
+                        <button onClick={nextStep} className="w-full bg-brand-green text-white py-4 rounded-full font-bold text-lg hover:shadow-glow transition-all transform hover:-translate-y-1">{t.next}</button>
                     </div>
                 );
             case 2:
                 return (
-                    <div className="bg-white dark:bg-dark-card p-10 rounded-3xl shadow-xl text-center animate-fade-in w-full max-w-md mx-auto">
-                        <h3 className="text-3xl font-bold mb-6 dark:text-white">{t.whatsYourWeight}</h3>
-                        <input type="number" name="weight" value={profileData.weight} onChange={handleInputChange} className="w-full p-4 text-center text-2xl rounded-xl border dark:bg-gray-800 dark:border-gray-700 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none transition" placeholder={t.weightPlaceholder} autoFocus />
-                        <button onClick={nextStep} className="w-full bg-brand-green text-brand-green-dark mt-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg">{t.next}</button>
+                    <div className="glass-card p-10 rounded-[3rem] shadow-glow-sm text-center animate-fade-in w-full max-w-md mx-auto">
+                        <span className="text-4xl mb-4 block">⚖️</span>
+                        <h3 className="text-3xl font-black mb-2 dark:text-white">{t.whatsYourWeight}</h3>
+                         <p className="text-gray-500 mb-8">{t.weightInfo}</p>
+                        <div className="relative">
+                            <input type="number" name="weight" value={profileData.weight} onChange={handleInputChange} className="w-full p-6 text-center text-4xl font-bold rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-brand-green outline-none transition mb-8" placeholder="00" autoFocus />
+                            <span className="absolute right-8 top-8 text-gray-400 font-bold">kg</span>
+                        </div>
+                        <button onClick={nextStep} className="w-full bg-brand-green text-white py-4 rounded-full font-bold text-lg hover:shadow-glow transition-all transform hover:-translate-y-1">{t.next}</button>
                     </div>
                 );
             case 3:
                 return (
-                     <div className="bg-white dark:bg-dark-card p-10 rounded-3xl shadow-xl text-center animate-fade-in w-full max-w-md mx-auto">
-                        <h3 className="text-3xl font-bold mb-6 dark:text-white">{t.whatsYourHeight}</h3>
-                        <input type="number" name="height" value={profileData.height} onChange={handleInputChange} className="w-full p-4 text-center text-2xl rounded-xl border dark:bg-gray-800 dark:border-gray-700 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none transition" placeholder={t.heightPlaceholder} autoFocus />
-                        <button onClick={nextStep} className="w-full bg-brand-green text-brand-green-dark mt-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg">{t.next}</button>
+                     <div className="glass-card p-10 rounded-[3rem] shadow-glow-sm text-center animate-fade-in w-full max-w-md mx-auto">
+                        <span className="text-4xl mb-4 block">📏</span>
+                        <h3 className="text-3xl font-black mb-2 dark:text-white">{t.whatsYourHeight}</h3>
+                        <p className="text-gray-500 mb-8">{t.heightInfo}</p>
+                        <div className="relative">
+                            <input type="number" name="height" value={profileData.height} onChange={handleInputChange} className="w-full p-6 text-center text-4xl font-bold rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-brand-green outline-none transition mb-8" placeholder="000" autoFocus />
+                            <span className="absolute right-8 top-8 text-gray-400 font-bold">cm</span>
+                        </div>
+                        <button onClick={nextStep} className="w-full bg-brand-green text-white py-4 rounded-full font-bold text-lg hover:shadow-glow transition-all transform hover:-translate-y-1">{t.next}</button>
                     </div>
                 );
             case 4:
                 return (
-                     <div className="bg-white dark:bg-dark-card p-10 rounded-3xl shadow-xl text-center animate-fade-in w-full max-w-md mx-auto">
-                        <h3 className="text-3xl font-bold mb-6 dark:text-white">{t.yourGoal}</h3>
-                        <div className="space-y-4">
+                     <div className="glass-card p-10 rounded-[3rem] shadow-glow-sm text-center animate-fade-in w-full max-w-md mx-auto">
+                        <span className="text-4xl mb-4 block">🎯</span>
+                        <h3 className="text-3xl font-black mb-6 dark:text-white">{t.yourGoal}</h3>
+                        <div className="space-y-3 mb-8">
                             {goals.map(goal => (
                                 <button
                                     key={goal.key}
                                     onClick={() => setProfileData(prev => ({ ...prev, goal: goal.key }))}
-                                    className={`w-full p-4 rounded-xl font-bold text-lg border-2 transition ${profileData.goal === goal.key ? 'bg-brand-green text-brand-green-dark border-brand-green shadow-lg scale-105' : 'bg-transparent text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-brand-green dark:hover:border-brand-green'}`}
+                                    className={`w-full p-4 rounded-2xl font-bold text-md transition-all duration-300 ${profileData.goal === goal.key ? 'bg-brand-green text-white shadow-lg scale-105' : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                                 >
                                     {t[goal.label]}
                                 </button>
                             ))}
                         </div>
-                        <button onClick={handleSubmit} disabled={!profileData.goal} className="w-full bg-brand-green text-brand-green-dark mt-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">{t.finishSetup}</button>
+                        <button onClick={handleSubmit} disabled={!profileData.goal} className="w-full bg-brand-green text-white py-4 rounded-full font-bold text-lg hover:shadow-glow transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed">{t.finishSetup}</button>
                     </div>
                 );
             default:
@@ -289,11 +343,14 @@ const ProfileSetup: React.FC<{ onComplete: (data: Partial<User>) => void }> = ({
     
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] py-12 animate-fade-in">
-            <h2 className="text-4xl font-black text-gray-800 dark:text-white mb-6 text-center">{t.setupProfileTitle}</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-12 max-w-lg text-center text-lg leading-relaxed">
-                {t.setupProfileSubtitle}
-            </p>
-            {renderStep()}
+             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-green/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+            <div className="relative z-10 w-full">
+                 <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4 text-center">{t.setupProfileTitle}</h2>
+                <p className="text-gray-500 dark:text-gray-400 mb-12 max-w-lg mx-auto text-center text-lg">
+                    {t.setupProfileSubtitle}
+                </p>
+                {renderStep()}
+            </div>
         </div>
     );
 };
@@ -302,10 +359,6 @@ const Dashboard: React.FC = () => {
     const { currentUser, updateUserProfile, plan, language, translations } = useAppContext();
     const t = translations[language];
 
-    // If no user or explicit Guest user who hasn't set up profile
-    // But logically guest user object is created in AppContext with id 'guest'
-    // If currentUser is null (initial state), we show Hero
-    
     if (!currentUser || currentUser.id === 'guest') {
         return <HeroLanding />;
     }
@@ -322,17 +375,20 @@ const Dashboard: React.FC = () => {
     if (!hasPlan) {
         return (
             <div className="flex flex-col items-center justify-center text-center pt-20 animate-fade-in min-h-[50vh]">
-                <div className="w-20 h-20 border-4 border-brand-green border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-3xl font-bold mb-3 text-gray-800 dark:text-white">{t.generatingPlan}</h2>
-                <p className="text-gray-600 dark:text-gray-400 text-lg">{t.generatingPlanDesc}</p>
+                <div className="w-24 h-24 border-8 border-brand-green border-t-transparent rounded-full animate-spin mb-8"></div>
+                <h2 className="text-4xl font-black mb-4 text-gray-900 dark:text-white">{t.generatingPlan}</h2>
+                <p className="text-gray-500 dark:text-gray-400 text-xl max-w-md">{t.generatingPlanDesc}</p>
             </div>
         )
     }
 
     return (
-        <div className="animate-fade-in">
-            <ProfileCard />
-            <DailyPlanView />
+        <div className="animate-fade-in pb-12">
+            <h1 className="text-3xl font-black italic text-gray-900 dark:text-white mb-6">Hello, <span className="text-brand-green">{currentUser.name.split(' ')[0]}</span> 👋</h1>
+            <div className="grid grid-cols-12 gap-8">
+                <ProfileBento />
+                <DailyPlanView />
+            </div>
         </div>
     );
 };

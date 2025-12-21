@@ -1,6 +1,8 @@
+
 import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
-import { User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, Notification, MarketItem } from '../types';
-import { USERS, COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, BANNER_IMAGES } from '../constants';
+import { GoogleGenAI } from "@google/genai";
+import { User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, Notification, MarketItem, SiteConfig, KnowledgeBaseItem } from '../types';
+import { USERS, COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE } from '../constants';
 import { format } from 'date-fns';
 
 interface Toast {
@@ -22,12 +24,15 @@ interface AppContextType {
     isLanguageSelected: boolean;
     marketItems: MarketItem[];
     bannerImages: string[];
+    siteConfig: SiteConfig;
     translations: typeof TRANSLATIONS;
+    knowledgeBase: KnowledgeBaseItem[];
     login: (phone: string, password?: string) => boolean;
     loginAsGuest: () => void;
     logout: () => void;
     register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => void;
     registerCoach: (data: CoachOnboardingData) => void;
+    updateCoach: (id: string, data: CoachOnboardingData) => void;
     setLanguage: (lang: Language) => void;
     setIsLanguageSelected: (isSelected: boolean) => void;
     setTheme: (theme: Theme) => void;
@@ -48,6 +53,11 @@ interface AppContextType {
     deleteBannerImage: (index: number) => void;
     updateBannerImage: (index: number, url: string) => void;
     updateTranslations: (newTranslations: typeof TRANSLATIONS) => void;
+    updateSiteConfig: (newConfig: Partial<SiteConfig>) => void;
+    addKnowledgeItem: (item: Omit<KnowledgeBaseItem, 'id'>) => void;
+    updateKnowledgeItem: (item: KnowledgeBaseItem) => void;
+    deleteKnowledgeItem: (id: string) => void;
+    getAIResponse: (question: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -56,7 +66,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>(USERS);
     const [coaches, setCoaches] = useState<Coach[]>(COACHES);
-    // Changed default language to Arabic (AR)
     const [language, setLanguage] = useState<Language>(Language.AR);
     const [isLanguageSelected, setIsLanguageSelected] = useState<boolean>(true);
     const [theme, setTheme] = useState<Theme>(Theme.LIGHT);
@@ -67,6 +76,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [marketItems, setMarketItems] = useState<MarketItem[]>(MARKET_ITEMS);
     const [bannerImages, setBannerImages] = useState<string[]>(BANNER_IMAGES);
     const [translations, setTranslations] = useState(TRANSLATIONS);
+    const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
+    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>(DEFAULT_KNOWLEDGE_BASE);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -77,22 +88,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
 
     const login = (phone: string, password?: string) => {
-        // Login by Phone
         const user = users.find(u => u.phone === phone);
         if (user) {
-            // For admin users, password is required
             if (user.role === UserRole.ADMIN && user.password !== password) {
                 return false;
             }
-
             setCurrentUser(user);
-             // On login, generate plan if profile is complete
             if (user.age && user.weight && user.height && user.goal) {
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const userPlan = GOAL_PLANS[user.goal] || GOAL_PLANS[Goal.MAINTENANCE];
                 setPlan({ [today]: userPlan });
             } else {
-                setPlan({}); // Clear plan if profile is incomplete
+                setPlan({});
             }
             return true;
         }
@@ -108,7 +115,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             role: UserRole.USER,
         };
         setCurrentUser(guestUser);
-        setPlan({}); // Ensure guest has no plan
+        setPlan({});
     };
 
     const logout = () => {
@@ -118,7 +125,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const register = (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => {
         const newUser: User = { 
             ...userData, 
-            email: `${userData.phone}@ny11.com`, // Auto-generate placeholder email for internal logic
+            email: `${userData.phone}@ny11.com`,
             id: `user${Date.now()}`, 
             role: UserRole.USER,
         };
@@ -161,6 +168,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setUsers(prev => [...prev, newUser]);
         setCoaches(prev => [...prev, newCoach]);
         showToast(`Coach ${data.name} has been successfully registered.`, 'success');
+    };
+
+    const updateCoach = (id: string, data: CoachOnboardingData) => {
+        setCoaches(prev => prev.map(c => c.id === id ? {
+            ...c,
+            name: data.name,
+            specialty: data.specialty,
+            bio: data.bio,
+            experienceYears: parseInt(data.experienceYears, 10) || 0,
+            clientsHelped: parseInt(data.clientsHelped, 10) || 0,
+            avatar: data.avatar,
+        } : c));
+
+        setUsers(prev => prev.map(u => u.id === id ? {
+            ...u,
+            name: data.name,
+            phone: data.phone,
+            avatar: data.avatar,
+            password: data.password || u.password
+        } : u));
+        
+        showToast(`Coach ${data.name} updated successfully.`, 'success');
     };
 
     const addToCart = (itemId: string) => {
@@ -216,6 +245,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         showToast('Text content updated successfully.', 'success');
     };
 
+    const updateSiteConfig = (newConfig: Partial<SiteConfig>) => {
+        setSiteConfig(prev => ({...prev, ...newConfig}));
+        showToast('Site configuration updated.', 'success');
+    };
+
+    const addKnowledgeItem = (item: Omit<KnowledgeBaseItem, 'id'>) => {
+        const newItem: KnowledgeBaseItem = {
+            ...item,
+            id: `kb${Date.now()}`,
+        };
+        setKnowledgeBase(prev => [...prev, newItem]);
+        showToast('Q&A added to AI Knowledge Base.', 'success');
+    };
+
+    const updateKnowledgeItem = (updatedItem: KnowledgeBaseItem) => {
+        setKnowledgeBase(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        showToast('AI Knowledge Base updated.', 'success');
+    };
+
+    const deleteKnowledgeItem = (id: string) => {
+        setKnowledgeBase(prev => prev.filter(item => item.id !== id));
+        showToast('Item removed from AI Knowledge Base.', 'success');
+    };
+
+    const getAIResponse = async (userQuestion: string): Promise<string> => {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            const knowledgeContext = knowledgeBase.map(kb => 
+                `Q: ${kb.question}\nA: ${kb.answer}`
+            ).join('\n---\n');
+
+            const systemInstruction = `You are the NY11 AI Nutrition & Health Expert.
+            
+            Persona:
+            - Professional, motivating, and strictly health-focused.
+            - Expert in nutrition, fitness, hydration, and overall wellness.
+            
+            Sources of Knowledge:
+            1. PRIMARY SOURCE (Internal Admin Data): Use the provided data below for platform-specific questions (subscription, company rules, specific breakfast recommendations).
+            2. SECONDARY SOURCE (General Expertise): If the user's question isn't in the internal data, use your advanced medical and nutrition knowledge as a world-class health coach.
+            
+            INTERNAL ADMIN KNOWLEDGE BASE:
+            ${knowledgeContext}
+            
+            Rules:
+            - Never say "I don't have enough info" unless the question is completely unrelated to health or the app.
+            - Always prefer the Internal Admin data if relevant.
+            - Keep answers brief and encouraging.
+            - Respond in ${language === Language.AR ? 'Arabic' : 'English'}.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: userQuestion,
+                config: {
+                    systemInstruction: systemInstruction,
+                }
+            });
+
+            return response.text || (language === Language.AR ? "عذرًا، لم أتمكن من الرد في الوقت الحالي." : "Sorry, I couldn't generate a response right now.");
+        } catch (error) {
+            console.error("Gemini API Error:", error);
+            return language === Language.AR 
+                ? "أواجه مشكلة في الاتصال بالخادم حاليًا. يرجى المحاولة لاحقًا."
+                : "I'm having trouble connecting to the server right now. Please try again later.";
+        }
+    };
+
     const clearCart = () => setCart([]);
 
     const showNotification = useCallback((notification: Omit<Notification, 'id'>) => {
@@ -242,17 +339,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentUser(prevUser => {
             if (!prevUser) return null;
             const updatedUser = { ...prevUser, ...profileData };
-            
-            // Check if profile is now complete and generate the initial plan
             if (updatedUser.age && updatedUser.weight && updatedUser.height && updatedUser.goal) {
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const userPlan = GOAL_PLANS[updatedUser.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-                // Use a timeout to simulate plan generation
                 setTimeout(() => {
                   setPlan({ [today]: userPlan });
                 }, 1000);
             }
-            
             return updatedUser;
         });
     };
@@ -276,7 +369,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (status === QuoteStatus.ACCEPTED) {
             setTimeout(() => {
-                const newPlanData = GOAL_PLANS[Goal.MUSCLE_BUILD]; // Example plan
+                const newPlanData = GOAL_PLANS[Goal.MUSCLE_BUILD];
                 const newPlan: Plan = { [format(new Date(), 'yyyy-MM-dd')]: newPlanData };
                 
                 const planMessage: Message = {
@@ -312,12 +405,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isLanguageSelected,
             marketItems,
             bannerImages,
+            siteConfig,
             translations,
+            knowledgeBase,
             login,
             loginAsGuest,
             logout,
             register,
             registerCoach,
+            updateCoach,
             setLanguage,
             setIsLanguageSelected,
             setTheme,
@@ -338,6 +434,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             deleteBannerImage,
             updateBannerImage,
             updateTranslations,
+            updateSiteConfig,
+            addKnowledgeItem,
+            updateKnowledgeItem,
+            deleteKnowledgeItem,
+            getAIResponse,
         }}>
             {children}
         </AppContext.Provider>

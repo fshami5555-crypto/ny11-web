@@ -133,3 +133,15 @@ export interface Notification {
     body: string;
     icon?: string;
 }
+
+export interface SiteConfig {
+    heroImage: string;
+    // Add other dynamic non-text config here
+}
+
+export interface KnowledgeBaseItem {
+    id: string;
+    question: string;
+    answer: string;
+    keywords: string[]; // Keywords to help matching if exact match fails
+}

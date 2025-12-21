@@ -1,4 +1,5 @@
-import { User, Coach, MarketItem, UserRole, Language, Goal, DailyPlan } from './types';
+
+import { User, Coach, MarketItem, UserRole, Language, Goal, DailyPlan, SiteConfig, KnowledgeBaseItem } from './types';
 
 export const USERS: User[] = [
   { id: 'admin1', name: 'Admin', email: 'admin@ny11.com', phone: '000000000', role: UserRole.ADMIN, avatar: 'https://i.pravatar.cc/150?u=admin1', password: 'admin123' },
@@ -35,6 +36,14 @@ export const COACHES: Coach[] = [
     },
 ];
 
+export const DEFAULT_KNOWLEDGE_BASE: KnowledgeBaseItem[] = [
+    { id: 'kb1', question: 'How much water should I drink?', answer: 'It is generally recommended to drink at least 8 glasses (about 2 liters) of water a day, but individual needs vary based on activity level and climate.', keywords: ['water', 'drink', 'hydration'] },
+    { id: 'kb2', question: 'What is a good breakfast for weight loss?', answer: 'A high-protein breakfast like oatmeal with berries, eggs with avocado, or greek yogurt is excellent for weight loss.', keywords: ['breakfast', 'weight', 'loss', 'food'] },
+    { id: 'kb3', question: 'How do I build muscle?', answer: 'To build muscle, focus on hypertrophy training (8-12 reps), eat a protein-rich diet, and ensure you are getting enough rest.', keywords: ['muscle', 'build', 'strength'] },
+    { id: 'kb4', question: 'Can I cancel my subscription?', answer: 'Yes, you can manage your subscription settings in your profile page under the "Settings" tab.', keywords: ['cancel', 'subscription', 'plan'] },
+    { id: 'kb5', question: 'Hi', answer: 'Hello! I am NY11 AI Coach. How can I help you with your health journey today?', keywords: ['hello', 'hi', 'hey'] },
+];
+
 export const MARKET_ITEMS: MarketItem[] = [
     { id: 'm1', name: 'Grilled Chicken Salad', description: 'Fresh greens, grilled chicken, and a light vinaigrette.', price: 12.50, image: 'https://picsum.photos/id/23/400/300', category: 'meal' },
     { id: 'm2', name: 'Quinoa Bowl', description: 'A hearty bowl of quinoa with roasted vegetables.', price: 11.00, image: 'https://picsum.photos/id/25/400/300', category: 'meal' },
@@ -54,6 +63,10 @@ export const BANNER_IMAGES = [
     'https://i.ibb.co/hxbVf4f7/image.png',
 ];
 
+export const DEFAULT_SITE_CONFIG: SiteConfig = {
+    heroImage: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
+};
+
 export const GOAL_PLANS: Record<Goal, DailyPlan> = {
   [Goal.WEIGHT_LOSS]: {
     breakfast: [{ name: 'Oatmeal with Berries', calories: 300, completed: false, image: 'https://picsum.photos/id/1080/400/300', description: 'A warm bowl of oatmeal topped with fresh mixed berries.' }],
@@ -67,21 +80,21 @@ export const GOAL_PLANS: Record<Goal, DailyPlan> = {
     lunch: [{ name: 'Beef Burrito Bowl', calories: 700, completed: false, image: 'https://picsum.photos/id/1015/400/300', description: 'A hearty bowl with brown rice, black beans, beef, and cheese.' }],
     dinner: [{ name: 'Pasta with Meat Sauce', calories: 650, completed: false, image: 'https://picsum.photos/id/1074/400/300', description: 'A generous portion of pasta with a rich, homemade meat sauce.' }],
     snacks: [{ name: 'Handful of Almonds & a Banana', calories: 300, completed: false, image: 'https://picsum.photos/id/1016/400/300', description: 'A healthy, calorie-dense snack.' }],
-    exercises: [{ name: 'Full Body Strength Training', duration: '60 min', completed: false }],
+    exercises: [{ name: '60 min Full Body', duration: '60 min', completed: false }],
   },
   [Goal.MUSCLE_BUILD]: {
     breakfast: [{ name: 'Protein Pancakes', calories: 450, completed: false, image: 'https://picsum.photos/id/1025/400/300', description: 'Fluffy pancakes made with protein powder, served with syrup.' }],
     lunch: [{ name: 'Chicken Breast with Quinoa & Broccoli', calories: 600, completed: false, image: 'https://picsum.photos/id/1028/400/300', description: 'A classic muscle-building meal with lean protein and complex carbs.' }],
     dinner: [{ name: 'Steak with Sweet Potato', calories: 700, completed: false, image: 'https://picsum.photos/id/1035/400/300', description: 'A juicy steak served with a baked sweet potato for energy.' }],
     snacks: [{ name: 'Protein Shake', calories: 250, completed: false, image: 'https://picsum.photos/id/106/400/300', description: 'A quick and easy protein shake to fuel muscle recovery.' }],
-    exercises: [{ name: 'Heavy Lifting (Push Day)', reps: '3-4 sets of 8-12', completed: false }],
+    exercises: [{ name: 'Push Day', reps: '3-4 sets of 8-12', completed: false }],
   },
   [Goal.FITNESS]: {
     breakfast: [{ name: 'Smoothie with Spinach and Fruit', calories: 350, completed: false, image: 'https://picsum.photos/id/40/400/300', description: 'A vibrant smoothie packed with vitamins and minerals.' }],
     lunch: [{ name: 'Tuna Wrap', calories: 450, completed: false, image: 'https://picsum.photos/id/43/400/300', description: 'A whole-wheat wrap filled with tuna salad and fresh lettuce.' }],
     dinner: [{ name: 'Turkey Meatballs with Zucchini Noodles', calories: 500, completed: false, image: 'https://picsum.photos/id/48/400/300', description: 'A light yet satisfying dinner to keep you energized.' }],
     snacks: [{ name: 'Apple with Peanut Butter', calories: 200, completed: false, image: 'https://picsum.photos/id/51/400/300', description: 'A balanced snack with fiber and healthy fats.' }],
-    exercises: [{ name: 'High-Intensity Interval Training (HIIT)', duration: '20 min', completed: false }],
+    exercises: [{ name: '20 min HIIT', duration: '20 min', completed: false }],
   },
   [Goal.MAINTENANCE]: {
     breakfast: [{ name: 'Everything Bagel with Cream Cheese', calories: 400, completed: false, image: 'https://picsum.photos/id/55/400/300', description: 'A classic breakfast to start your day.' }],
@@ -106,6 +119,7 @@ export const TRANSLATIONS = {
     delete: 'Delete',
     cancel: 'Cancel',
     saveChanges: 'Save Changes',
+    aiNutritionist: 'AI Nutritionist',
 
     // Hero & Web
     heroTitle: 'Transform Your Health with ny11',
@@ -246,6 +260,7 @@ export const TRANSLATIONS = {
     storeManagement: 'Store Management',
     paymentManagement: 'Payment Management',
     contentManagement: 'Content Management',
+    aiConfig: 'AI Coach Config',
     users: 'Users',
     coaches: 'Coaches',
     existingCoaches: 'Existing Coaches',
@@ -284,6 +299,26 @@ export const TRANSLATIONS = {
     q3Desc: 'AI Meal Analysis (Vision API), Smart Auto-Plan Generation based on bio-metrics, Video/Voice Calls.',
     q4Title: 'Q4 2024: Community & Expansion',
     q4Desc: 'Community Challenges, Leaderboards, Wearable Integration (Apple Health/Google Fit), Native Mobile Apps.',
+    homePageManagement: 'Home Page Management',
+    manageHeroTitle: 'Hero Title',
+    manageHeroSubtitle: 'Hero Subtitle',
+    heroImage: 'Hero Image URL',
+    footerManagement: 'Footer Management',
+    manageFooterDesc: 'Footer Description',
+    footerCopyright: 'Copyright Text',
+    enText: 'English Text',
+    arText: 'Arabic Text',
+    updateCoach: 'Update Coach',
+    editCoach: 'Edit Coach',
+    
+    // AI Admin
+    question: 'Question',
+    answer: 'Answer',
+    keywords: 'Keywords (comma separated)',
+    addNewQA: 'Add New Q&A',
+    existingQA: 'Existing Q&A Pairs',
+    addQA: 'Add Pair',
+    updateQA: 'Update Pair',
 
     // Guided Tour
     tourWelcomeTitle: 'Welcome to NY11!',
@@ -317,6 +352,7 @@ export const TRANSLATIONS = {
     delete: 'حذف',
     cancel: 'إلغاء',
     saveChanges: 'حفظ التغييرات',
+    aiNutritionist: 'خبير التغذية الذكي',
 
     // Hero & Web
     heroTitle: 'غيّر حياتك الصحية مع ny11',
@@ -457,6 +493,7 @@ export const TRANSLATIONS = {
     storeManagement: 'إدارة المتجر',
     paymentManagement: 'إدارة المدفوعات',
     contentManagement: 'إدارة المحتوى',
+    aiConfig: 'إعدادات المدرب الذكي',
     users: 'المستخدمون',
     coaches: 'المدربون',
     existingCoaches: 'المدربون الحاليون',
@@ -495,6 +532,26 @@ export const TRANSLATIONS = {
     q3Desc: 'تحليل صور الوجبات بالذكاء الاصطناعي، إنشاء خطط تلقائية ذكية، ومكالمات الفيديو.',
     q4Title: 'الربع الرابع 2024: التوسع والمجتمع',
     q4Desc: 'تحديات المجتمع، قوائم المتصدرين، الربط مع الساعات الذكية، وتطبيقات الجوال الأصلية.',
+    homePageManagement: 'إدارة الصفحة الرئيسية',
+    manageHeroTitle: 'العنوان الرئيسي',
+    manageHeroSubtitle: 'العنوان الفرعي',
+    heroImage: 'رابط صورة البداية',
+    footerManagement: 'إدارة الفوتر',
+    manageFooterDesc: 'وصف الفوتر',
+    footerCopyright: 'نص حقوق النشر',
+    enText: 'النص الإنجليزي',
+    arText: 'النص العربي',
+    updateCoach: 'تحديث المدرب',
+    editCoach: 'تعديل المدرب',
+    
+    // AI Admin
+    question: 'السؤال',
+    answer: 'الإجابة',
+    keywords: 'كلمات مفتاحية (مفصولة بفاصلة)',
+    addNewQA: 'إضافة سؤال وجواب',
+    existingQA: 'الأسئلة والأجوبة الحالية',
+    addQA: 'إضافة',
+    updateQA: 'تحديث',
 
     // Guided Tour
     tourWelcomeTitle: 'مرحباً بك في NY11!',
