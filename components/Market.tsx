@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { MarketItem } from '../types';
+import React, { useState, useMemo } from 'react';
+import { MarketItem, MarketCategory } from '../types';
 import { useAppContext } from '../context/AppContext';
 
 const CartModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
@@ -88,7 +88,7 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
     };
 
     return (
-        <div className="group bg-white dark:bg-dark-card rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-transparent hover:border-brand-green/30">
+        <div className="group bg-white dark:bg-dark-card rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden border border-transparent hover:border-brand-green/30 animate-fade-in">
             <div className="relative h-56 overflow-hidden">
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -105,6 +105,11 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
                     <span className="font-black text-lg text-brand-green">${item.price.toFixed(2)}</span>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{item.description}</p>
+                <div className="mt-4">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-800 text-gray-400 px-2 py-1 rounded-md">
+                        {item.category}
+                    </span>
+                </div>
             </div>
         </div>
     );
@@ -112,8 +117,23 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
 
 const Market: React.FC = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [activeCategory, setActiveCategory] = useState<MarketCategory>('all');
     const { cart, language, currentUser, logout, showToast, marketItems, translations } = useAppContext();
     const t = translations[language];
+
+    const categories: { id: MarketCategory; label: string; icon: string }[] = [
+        { id: 'all', label: t.all, icon: '✨' },
+        { id: 'breakfast', label: t.cat_breakfast, icon: '🍳' },
+        { id: 'lunch', label: t.cat_lunch, icon: '🍛' },
+        { id: 'dinner', label: t.cat_dinner, icon: '🥗' },
+        { id: 'snack', label: t.cat_snack, icon: '🥜' },
+        { id: 'drink', label: t.cat_drink, icon: '🥤' },
+    ];
+
+    const filteredItems = useMemo(() => {
+        if (activeCategory === 'all') return marketItems;
+        return marketItems.filter(item => item.category === activeCategory);
+    }, [activeCategory, marketItems]);
 
     const handleCartIconClick = () => {
         if (currentUser?.id === 'guest') {
@@ -126,10 +146,10 @@ const Market: React.FC = () => {
 
     return (
         <div className="animate-fade-in pb-12">
-            <div className="flex justify-between items-end mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                 <div>
                      <h1 className="text-4xl font-black italic text-gray-900 dark:text-white">{t.market}</h1>
-                     <p className="text-gray-500 mt-2">Healthy meals & drinks delivered.</p>
+                     <p className="text-gray-500 mt-2">Healthy meals & snacks delivered to your door.</p>
                 </div>
                
                 <button onClick={handleCartIconClick} className="relative bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm hover:shadow-md transition group">
@@ -137,12 +157,37 @@ const Market: React.FC = () => {
                     {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-sm border-2 border-gray-50 dark:border-dark-bg">{cart.reduce((total, item) => total + item.quantity, 0)}</span>}
                 </button>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {marketItems.map(item => (
-                    <MarketItemCard key={item.id} item={item} />
+
+            {/* Category Selector */}
+            <div className="flex overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide gap-3 md:gap-4 mb-8">
+                {categories.map((cat) => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm whitespace-nowrap transition-all duration-300 transform active:scale-95 ${
+                            activeCategory === cat.id
+                                ? 'bg-brand-green text-white shadow-glow scale-105'
+                                : 'bg-white dark:bg-dark-card text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <span>{cat.icon}</span>
+                        <span>{cat.label}</span>
+                    </button>
                 ))}
             </div>
+            
+            {filteredItems.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredItems.map(item => (
+                        <MarketItemCard key={item.id} item={item} />
+                    ))}
+                </div>
+            ) : (
+                <div className="py-20 text-center text-gray-400 flex flex-col items-center">
+                    <span className="text-6xl mb-4">🍽️</span>
+                    <p className="text-xl font-medium">No items found in this category.</p>
+                </div>
+            )}
 
             <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
         </div>

@@ -1,3 +1,4 @@
+
 // FIX: Removed a self-referential import that caused type declaration conflicts.
 
 export enum Language {
@@ -114,13 +115,15 @@ export interface Plan {
   [date: string]: DailyPlan; // date format: 'YYYY-MM-DD'
 }
 
+export type MarketCategory = 'all' | 'breakfast' | 'lunch' | 'dinner' | 'drink' | 'snack';
+
 export interface MarketItem {
   id: string;
   name: string;
   description: string;
   price: number;
   image: string;
-  category: 'meal' | 'drink';
+  category: MarketCategory;
 }
 
 export interface CartItem extends MarketItem {

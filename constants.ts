@@ -45,11 +45,16 @@ export const DEFAULT_KNOWLEDGE_BASE: KnowledgeBaseItem[] = [
 ];
 
 export const MARKET_ITEMS: MarketItem[] = [
-    { id: 'm1', name: 'Grilled Chicken Salad', description: 'Fresh greens, grilled chicken, and a light vinaigrette.', price: 12.50, image: 'https://picsum.photos/id/23/400/300', category: 'meal' },
-    { id: 'm2', name: 'Quinoa Bowl', description: 'A hearty bowl of quinoa with roasted vegetables.', price: 11.00, image: 'https://picsum.photos/id/25/400/300', category: 'meal' },
-    { id: 'm3', name: 'Salmon with Asparagus', description: 'Pan-seared salmon served with fresh asparagus.', price: 15.00, image: 'https://picsum.photos/id/31/400/300', category: 'meal' },
+    { id: 'm1', name: 'Oatmeal with Almonds', description: 'A light and energetic start to your day.', price: 8.50, image: 'https://picsum.photos/id/1080/400/300', category: 'breakfast' },
+    { id: 'm2', name: 'Avocado Toast', description: 'Fresh avocado on whole wheat bread with seeds.', price: 9.00, image: 'https://picsum.photos/id/493/400/300', category: 'breakfast' },
+    { id: 'm3', name: 'Grilled Chicken Salad', description: 'Fresh greens, grilled chicken, and a light vinaigrette.', price: 12.50, image: 'https://picsum.photos/id/23/400/300', category: 'lunch' },
+    { id: 'm4', name: 'Quinoa Bowl', description: 'A hearty bowl of quinoa with roasted vegetables.', price: 11.00, image: 'https://picsum.photos/id/25/400/300', category: 'lunch' },
+    { id: 'm5', name: 'Salmon with Asparagus', description: 'Pan-seared salmon served with fresh asparagus.', price: 15.00, image: 'https://picsum.photos/id/31/400/300', category: 'dinner' },
+    { id: 'm6', name: 'Turkey Meatballs', description: 'Lean turkey meatballs with zucchini noodles.', price: 13.50, image: 'https://picsum.photos/id/48/400/300', category: 'dinner' },
     { id: 'd1', name: 'Green Smoothie', description: 'A refreshing blend of spinach, kale, and fruit.', price: 6.50, image: 'https://picsum.photos/id/40/400/300', category: 'drink' },
     { id: 'd2', name: 'Fresh Orange Juice', description: '100% pure squeezed orange juice.', price: 5.00, image: 'https://picsum.photos/id/42/400/300', category: 'drink' },
+    { id: 's1', name: 'Greek Yogurt with Honey', description: 'High protein snack for muscle recovery.', price: 4.50, image: 'https://picsum.photos/id/41/400/300', category: 'snack' },
+    { id: 's2', name: 'Nut Mix', description: 'A selection of raw, unsalted nuts.', price: 6.00, image: 'https://picsum.photos/id/1016/400/300', category: 'snack' },
 ];
 
 export const ONBOARDING_BACKGROUNDS = [
@@ -132,6 +137,14 @@ export const TRANSLATIONS = {
     featuredProducts: 'Featured Healthy Choices',
     testimonialsTitle: 'What Our Users Say',
     ourExpertsShort: 'Meet Our Certified Experts',
+
+    // Market Categories
+    all: 'All',
+    cat_breakfast: 'Breakfast',
+    cat_lunch: 'Lunch',
+    cat_dinner: 'Dinner',
+    cat_drink: 'Drinks',
+    cat_snack: 'Snacks',
 
     // Hero & Web
     heroTitle: 'Transform Your Health with ny11',
@@ -377,6 +390,14 @@ export const TRANSLATIONS = {
     featuredProducts: 'خيارات صحية مميزة',
     testimonialsTitle: 'ماذا يقول مستخدمونا',
     ourExpertsShort: 'تعرف على خبرائنا المعتمدين',
+
+    // Market Categories
+    all: 'الكل',
+    cat_breakfast: 'إفطار',
+    cat_lunch: 'غداء',
+    cat_dinner: 'عشاء',
+    cat_drink: 'مشروبات',
+    cat_snack: 'سناكس',
 
     // Hero & Web
     heroTitle: 'غيّر حياتك الصحية مع ny11',
