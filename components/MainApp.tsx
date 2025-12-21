@@ -17,6 +17,7 @@ type ActivePage = 'dashboard' | 'chat' | 'activeChats' | 'market' | 'stats' | 's
 const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePage) => void; onLoginClick: () => void }> = ({ activePage, setActivePage, onLoginClick }) => {
     const { language, setLanguage, theme, setTheme, currentUser, logout, translations } = useAppContext();
     const t = translations[language];
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const toggleTheme = () => {
         setTheme(theme === Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
@@ -38,14 +39,28 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
 
     return (
         <div className="sticky top-4 z-40 px-4 w-full flex justify-center">
-            <nav className="glass w-full max-w-6xl rounded-full shadow-glow-sm px-6 py-3 flex justify-between items-center transition-all duration-300">
-                <div className="flex items-center cursor-pointer group" onClick={() => setActivePage('dashboard')}>
-                    <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center mr-2 rtl:mr-0 rtl:ml-2 group-hover:scale-110 transition-transform duration-300">
-                        <span className="text-white font-black italic text-xs">NY</span>
+            {/* Desktop & Mobile Top Bar */}
+            <nav className="glass w-full max-w-6xl rounded-full shadow-glow-sm px-4 md:px-6 py-3 flex justify-between items-center transition-all duration-300">
+                <div className="flex items-center">
+                    {/* Mobile Menu Button */}
+                    <button 
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="md:hidden w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 mr-2 rtl:mr-0 rtl:ml-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+
+                    <div className="flex items-center cursor-pointer group" onClick={() => setActivePage('dashboard')}>
+                        <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center mr-2 rtl:mr-0 rtl:ml-2 group-hover:scale-110 transition-transform duration-300">
+                            <span className="text-white font-black italic text-xs">NY</span>
+                        </div>
+                        <h1 className="text-2xl font-black italic tracking-tighter text-gray-800 dark:text-white group-hover:text-brand-green transition-colors">11</h1>
                     </div>
-                    <h1 className="text-2xl font-black italic tracking-tighter text-gray-800 dark:text-white group-hover:text-brand-green transition-colors">11</h1>
                 </div>
                 
+                {/* Desktop Nav Items */}
                 <div className="hidden md:flex items-center bg-gray-100/50 dark:bg-gray-800/50 rounded-full px-2 py-1 space-x-1 rtl:space-x-reverse">
                     {navItems.map(item => (
                         <button
@@ -62,17 +77,17 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                     ))}
                 </div>
 
-                <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                     <button onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-brand-green hover:text-white transition-colors duration-300" dangerouslySetInnerHTML={{ __html: theme === 'light' ? moonIcon : sunIcon }} />
-                    <button onClick={toggleLanguage} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 font-bold text-xs text-gray-600 dark:text-gray-300 hover:bg-brand-green hover:text-white transition-colors duration-300">
+                <div className="flex items-center space-x-2 md:space-x-3 rtl:space-x-reverse">
+                     <button onClick={toggleTheme} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-brand-green hover:text-white transition-colors duration-300" dangerouslySetInnerHTML={{ __html: theme === 'light' ? moonIcon : sunIcon }} />
+                    <button onClick={toggleLanguage} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 font-bold text-xs text-gray-600 dark:text-gray-300 hover:bg-brand-green hover:text-white transition-colors duration-300">
                         {language === 'en' ? 'AR' : 'EN'}
                     </button>
                     
                     {currentUser && currentUser.id !== 'guest' ? (
                         <div className="relative group">
-                            <button className="flex items-center space-x-2 rtl:space-x-reverse focus:outline-none bg-gray-100 dark:bg-gray-800 pl-1 pr-3 py-1 rounded-full hover:ring-2 hover:ring-brand-green transition-all">
-                                 <img src={currentUser.avatar || `https://i.pravatar.cc/150?u=${currentUser.id}`} alt="User" className="w-8 h-8 rounded-full object-cover" />
-                                 <i className="o-chevron-down text-xs text-gray-500"></i>
+                            <button className="flex items-center space-x-2 rtl:space-x-reverse focus:outline-none bg-gray-100 dark:bg-gray-800 pl-1 pr-1 md:pr-3 py-1 rounded-full hover:ring-2 hover:ring-brand-green transition-all">
+                                 <img src={currentUser.avatar || `https://i.pravatar.cc/150?u=${currentUser.id}`} alt="User" className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
+                                 <i className="o-chevron-down text-[10px] text-gray-500 hidden md:block"></i>
                             </button>
                             <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-3 w-56 glass-card rounded-2xl shadow-xl py-2 hidden group-hover:block animate-fade-in border border-gray-100 dark:border-gray-800 transform origin-top-right">
                                 <div className="px-4 py-2 border-b dark:border-gray-700">
@@ -86,12 +101,89 @@ const Navbar: React.FC<{ activePage: ActivePage; setActivePage: (page: ActivePag
                             </div>
                         </div>
                     ) : (
-                         <button onClick={onLoginClick} className="bg-brand-green text-white px-6 py-2.5 rounded-full font-bold text-sm hover:shadow-glow hover:-translate-y-0.5 transition-all duration-300">
+                         <button onClick={onLoginClick} className="bg-brand-green text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold text-xs md:text-sm hover:shadow-glow hover:-translate-y-0.5 transition-all duration-300">
                             {t.login}
                         </button>
                     )}
                 </div>
             </nav>
+
+            {/* Mobile Sidebar Overlay */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 z-[60] md:hidden">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)}></div>
+                    <div className={`absolute top-0 bottom-0 ${language === 'ar' ? 'right-0' : 'left-0'} w-72 bg-white dark:bg-dark-card shadow-2xl animate-slide-right transform transition-transform`}>
+                        <div className="p-6 h-full flex flex-col">
+                            <div className="flex justify-between items-center mb-8">
+                                <div className="flex items-center">
+                                    <div className="w-8 h-8 bg-brand-green rounded-full flex items-center justify-center mr-2 rtl:mr-0 rtl:ml-2">
+                                        <span className="text-white font-black italic text-[10px]">NY</span>
+                                    </div>
+                                    <h1 className="text-xl font-black italic text-gray-800 dark:text-white">NY11</h1>
+                                </div>
+                                <button onClick={() => setIsSidebarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="flex-1 space-y-2">
+                                {navItems.map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            setActivePage(item.id as ActivePage);
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-base font-bold transition-all ${
+                                            activePage === item.id
+                                            ? 'bg-brand-green/10 text-brand-green border-brand-green/20'
+                                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                        }`}
+                                    >
+                                        <span className="text-xl">
+                                            {item.id === 'dashboard' && '🏠'}
+                                            {item.id === 'chat' && '👥'}
+                                            {item.id === 'market' && '🛒'}
+                                            {item.id === 'stats' && '📊'}
+                                        </span>
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="mt-auto pt-6 border-t dark:border-gray-800">
+                                {currentUser && currentUser.id !== 'guest' ? (
+                                    <button 
+                                        onClick={() => {
+                                            setActivePage('settings');
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-gray-600 dark:text-gray-300 font-bold"
+                                    >
+                                        <img src={currentUser.avatar} className="w-8 h-8 rounded-full border-2 border-brand-green" />
+                                        <div className="text-left rtl:text-right">
+                                            <p className="text-sm leading-none mb-1">{currentUser.name}</p>
+                                            <p className="text-[10px] text-gray-500 font-medium">View Profile</p>
+                                        </div>
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => {
+                                            onLoginClick();
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className="w-full bg-brand-green text-white py-4 rounded-2xl font-bold"
+                                    >
+                                        {t.login}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -152,7 +244,7 @@ const Footer: React.FC = () => {
 
 const NotificationCard: React.FC<{ notification: Notification; onDismiss: () => void }> = ({ notification, onDismiss }) => {
     return (
-         <div className="glass-card rounded-2xl shadow-glow-sm p-4 w-full max-w-sm flex items-start animate-fade-in border border-brand-green/20">
+         <div className="glass-card rounded-2xl shadow-glow-sm p-4 w-full max-sm:mx-4 flex items-start animate-fade-in border border-brand-green/20">
             <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-brand-green-light to-brand-green rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
                 {notification.icon || 'N'}
             </div>
@@ -170,8 +262,8 @@ const NotificationCard: React.FC<{ notification: Notification; onDismiss: () => 
 const NotificationContainer: React.FC = () => {
     const { notifications, dismissNotification } = useAppContext();
     return (
-        <div className="fixed top-28 right-4 rtl:right-auto rtl:left-4 space-y-3 z-50 w-full max-w-md pointer-events-none">
-            <div className="pointer-events-auto">
+        <div className="fixed top-28 right-4 rtl:right-auto rtl:left-4 space-y-3 z-50 w-full max-w-md pointer-events-none flex flex-col items-center sm:items-end">
+            <div className="pointer-events-auto w-full flex flex-col gap-3">
                  {notifications.map(notif => (
                     <NotificationCard key={notif.id} notification={notif} onDismiss={() => dismissNotification(notif.id)} />
                 ))}
@@ -226,6 +318,13 @@ const MainApp: React.FC = () => {
                 {`
                     .scrollbar-hide::-webkit-scrollbar { display: none; }
                     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+                    @keyframes slideRight {
+                        from { transform: translateX(${language === 'ar' ? '100%' : '-100%'}); }
+                        to { transform: translateX(0); }
+                    }
+                    .animate-slide-right {
+                        animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                    }
                 `}
             </style>
             
@@ -240,7 +339,7 @@ const MainApp: React.FC = () => {
             {/* Floating AI Chat Button */}
             <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end">
                 {isAIChatOpen && (
-                    <div className="mb-4 w-screen max-w-[400px] h-[500px] shadow-2xl animate-slide-up">
+                    <div className="mb-4 w-screen max-w-[400px] h-[500px] shadow-2xl animate-slide-up max-sm:fixed max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:w-full max-sm:h-[80vh] max-sm:rounded-t-3xl max-sm:overflow-hidden">
                         <ChatView 
                             isAiOnly={true} 
                             coach={{ 
@@ -254,7 +353,7 @@ const MainApp: React.FC = () => {
                 )}
                 <button 
                     onClick={handleAIChatToggle}
-                    className="w-16 h-16 bg-brand-green text-white rounded-full shadow-glow flex items-center justify-center hover:scale-110 transition-transform group"
+                    className="w-14 h-14 md:w-16 md:h-16 bg-brand-green text-white rounded-full shadow-glow flex items-center justify-center hover:scale-110 transition-transform group"
                 >
                     {isAIChatOpen ? (
                         <i className="o-x-mark text-2xl"></i>
@@ -264,7 +363,7 @@ const MainApp: React.FC = () => {
                             <span className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
                         </div>
                     )}
-                    <span className="absolute right-20 bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden md:block shadow-md">
+                    <span className="absolute right-20 bg-brand-green text-white px-4 py-2 rounded-xl text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block shadow-md">
                         {t.aiNutritionist}
                     </span>
                 </button>
