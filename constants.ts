@@ -121,6 +121,18 @@ export const TRANSLATIONS = {
     saveChanges: 'Save Changes',
     aiNutritionist: 'AI Nutritionist',
 
+    // Landing Page
+    aboutUsTitle: 'About ny11',
+    aboutUsDesc: 'ny11 is more than just a nutrition app. We are a digital health sanctuary designed to bridge the gap between complex science and your daily lifestyle. Our mission is to empower you with expert knowledge and healthy tools to become the best version of yourself.',
+    statsTitle: 'ny11 in Numbers',
+    statClients: 'Happy Clients',
+    statPlans: 'Custom Plans',
+    statExperts: 'Certified Experts',
+    statSupport: 'Support Hours',
+    featuredProducts: 'Featured Healthy Choices',
+    testimonialsTitle: 'What Our Users Say',
+    ourExpertsShort: 'Meet Our Certified Experts',
+
     // Hero & Web
     heroTitle: 'Transform Your Health with ny11',
     heroSubtitle: 'Connect with certified nutrition and fitness experts to get a personalized plan tailored just for you. Start your journey today.',
@@ -353,6 +365,18 @@ export const TRANSLATIONS = {
     cancel: 'إلغاء',
     saveChanges: 'حفظ التغييرات',
     aiNutritionist: 'خبير التغذية الذكي',
+
+    // Landing Page
+    aboutUsTitle: 'من نحن - ny11',
+    aboutUsDesc: 'ny11 هو أكثر من مجرد تطبيق تغذية. نحن ملاذ صحي رقمي مصمم لسد الفجوة بين العلوم المعقدة وأسلوب حياتك اليومي. مهمتنا هي تمكينك بالمعرفة الخبيرة والأدوات الصحية لتصبح أفضل نسخة من نفسك.',
+    statsTitle: 'ny11 بالأرقام',
+    statClients: 'عميل سعيد',
+    statPlans: 'خطة مخصصة',
+    statExperts: 'خبير معتمد',
+    statSupport: 'ساعة دعم',
+    featuredProducts: 'خيارات صحية مميزة',
+    testimonialsTitle: 'ماذا يقول مستخدمونا',
+    ourExpertsShort: 'تعرف على خبرائنا المعتمدين',
 
     // Hero & Web
     heroTitle: 'غيّر حياتك الصحية مع ny11',

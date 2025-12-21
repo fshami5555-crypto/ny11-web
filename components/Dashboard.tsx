@@ -1,12 +1,11 @@
 
-
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, addDays, subDays } from 'date-fns';
-import { DailyPlan, Meal, Exercise, User, Goal } from '../types';
+import { DailyPlan, Meal, Exercise, User, Goal, MarketItem, Coach } from '../types';
 
 const HeroLanding: React.FC = () => {
-    const { translations, language, setIsLanguageSelected, loginAsGuest, siteConfig } = useAppContext();
+    const { translations, language, setIsLanguageSelected, loginAsGuest, siteConfig, marketItems, coaches } = useAppContext();
     const t = translations[language];
 
     const handleGetStarted = () => {
@@ -14,31 +13,141 @@ const HeroLanding: React.FC = () => {
         loginAsGuest();
     }
 
+    const featuredItems = marketItems.slice(0, 3);
+    const featuredCoaches = coaches.slice(0, 3);
+
+    const stats = [
+        { label: t.statClients, value: '10k+', icon: '🤝' },
+        { label: t.statPlans, value: '500+', icon: '📋' },
+        { label: t.statExperts, value: '50+', icon: '⭐' },
+        { label: t.statSupport, value: '24/7', icon: '⏰' },
+    ];
+
+    const testimonials = [
+        { name: language === 'ar' ? 'أحمد محمد' : 'Ahmed M.', text: language === 'ar' ? 'ny11 غير حياتي تماماً! الخطة المخصصة كانت سهلة الاتباع والخبراء مذهلون.' : 'ny11 completely changed my life! The custom plan was easy to follow and the experts are amazing.', avatar: 'https://i.pravatar.cc/100?u=1' },
+        { name: language === 'ar' ? 'سارة علي' : 'Sarah A.', text: language === 'ar' ? 'أفضل تطبيق صحي استخدمته على الإطلاق. جودة الوجبات في المتجر مذهلة.' : 'Best health app I’ve ever used. The quality of the meals in the market is incredible.', avatar: 'https://i.pravatar.cc/100?u=2' },
+        { name: language === 'ar' ? 'ياسين حسن' : 'Yassin H.', text: language === 'ar' ? 'الذكاء الاصطناعي هنا مفيد جداً، والاشتراك مع جيميناي يجعل التجربة فريدة.' : 'The AI here is so helpful, and the Gemini integration makes the experience unique.', avatar: 'https://i.pravatar.cc/100?u=3' },
+    ];
+
     return (
-        <div className="relative rounded-[3rem] overflow-hidden shadow-2xl mb-16 animate-fade-in group">
-             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 z-10"></div>
-             <img 
-                src={siteConfig.heroImage} 
-                alt="Healthy Lifestyle" 
-                className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition duration-1000"
-            />
-             
-             <div className="relative z-20 flex flex-col justify-center items-center h-[500px] text-center px-6">
-                <span className="inline-block py-1 px-4 rounded-full bg-brand-green/90 backdrop-blur-md text-white text-xs font-bold uppercase tracking-widest mb-4 animate-slide-up">
-                    Healthy Kitchen
-                </span>
-                <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-6 drop-shadow-lg max-w-4xl animate-slide-up" style={{animationDelay: '0.1s'}}>
-                    {t.heroTitle}
-                </h1>
-                <p className="text-lg md:text-xl text-gray-100 max-w-2xl mb-8 leading-relaxed font-medium animate-slide-up" style={{animationDelay: '0.2s'}}>
-                    {t.heroSubtitle}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{animationDelay: '0.3s'}}>
-                    <button onClick={handleGetStarted} className="bg-white text-brand-green-dark px-10 py-4 rounded-full font-bold text-lg hover:bg-brand-green hover:text-white transition-all duration-300 shadow-glow hover:shadow-glow-sm transform hover:-translate-y-1">
-                        {t.getStarted}
-                    </button>
+        <div className="animate-fade-in space-y-20">
+            {/* Hero Section */}
+            <div className="relative rounded-[3rem] overflow-hidden shadow-2xl group">
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 z-10"></div>
+                <img 
+                    src={siteConfig.heroImage} 
+                    alt="Healthy Lifestyle" 
+                    className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition duration-1000"
+                />
+                
+                <div className="relative z-20 flex flex-col justify-center items-center h-[500px] text-center px-6">
+                    <span className="inline-block py-1 px-4 rounded-full bg-brand-green/90 backdrop-blur-md text-white text-xs font-bold uppercase tracking-widest mb-4 animate-slide-up">
+                        Healthy Kitchen
+                    </span>
+                    <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-6 drop-shadow-lg max-w-4xl animate-slide-up" style={{animationDelay: '0.1s'}}>
+                        {t.heroTitle}
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-100 max-w-2xl mb-8 leading-relaxed font-medium animate-slide-up" style={{animationDelay: '0.2s'}}>
+                        {t.heroSubtitle}
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{animationDelay: '0.3s'}}>
+                        <button onClick={handleGetStarted} className="bg-white text-brand-green-dark px-10 py-4 rounded-full font-bold text-lg hover:bg-brand-green hover:text-white transition-all duration-300 shadow-glow hover:shadow-glow-sm transform hover:-translate-y-1">
+                            {t.getStarted}
+                        </button>
+                    </div>
                 </div>
-             </div>
+            </div>
+
+            {/* Statistics Section */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {stats.map((stat, idx) => (
+                    <div key={idx} className="glass-card p-8 rounded-[2.5rem] text-center shadow-sm hover:shadow-glow-sm transition-all transform hover:-translate-y-2">
+                        <span className="text-4xl mb-4 block">{stat.icon}</span>
+                        <h3 className="text-3xl font-black text-brand-green-dark dark:text-brand-green mb-1">{stat.value}</h3>
+                        <p className="text-gray-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">{stat.label}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* About Us Section */}
+            <div className="glass-card rounded-[3rem] p-10 md:p-16 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-green/10 rounded-full blur-[80px] -mr-16 -mt-16"></div>
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
+                    <div className="md:w-1/2 space-y-6">
+                        <h2 className="text-4xl font-black text-gray-900 dark:text-white">{t.aboutUsTitle}</h2>
+                        <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
+                            {t.aboutUsDesc}
+                        </p>
+                    </div>
+                    <div className="md:w-1/2">
+                        <img src="https://images.unsplash.com/photo-1543353071-873f17a7a088?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Fresh Food" className="rounded-[2.5rem] shadow-xl" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Experts Section */}
+            <div>
+                <div className="text-center mb-12">
+                    <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">{t.ourExpertsShort}</h2>
+                    <div className="w-20 h-1.5 bg-brand-green mx-auto rounded-full"></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+                    {featuredCoaches.map((coach) => (
+                        <div key={coach.id} className="bg-white dark:bg-dark-card rounded-[2.5rem] p-8 text-center shadow-lg border border-transparent hover:border-brand-green/30 transition-all duration-500 transform hover:scale-105">
+                            <img src={coach.avatar} className="w-24 h-24 rounded-full mx-auto mb-6 border-4 border-brand-green/20" alt={coach.name} />
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{coach.name}</h3>
+                            <p className="text-brand-green font-bold text-sm mb-4 uppercase">{coach.specialty}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2">{coach.bio}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Featured Market Items */}
+            <div className="bg-gray-100 dark:bg-gray-900/50 -mx-4 sm:-mx-8 lg:-mx-12 px-12 py-20 rounded-[4rem]">
+                <div className="text-center mb-12">
+                    <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">{t.featuredProducts}</h2>
+                    <div className="w-20 h-1.5 bg-brand-green mx-auto rounded-full"></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {featuredItems.map((item) => (
+                        <div key={item.id} className="bg-white dark:bg-dark-card rounded-[2.5rem] overflow-hidden shadow-xl group">
+                            <div className="h-64 overflow-hidden">
+                                <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt={item.name} />
+                            </div>
+                            <div className="p-8 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 dark:text-white">{item.name}</h3>
+                                    <p className="text-brand-green font-bold text-lg">${item.price.toFixed(2)}</p>
+                                </div>
+                                <span className="text-3xl">🥗</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Testimonials Section */}
+            <div className="pb-20">
+                <div className="text-center mb-12">
+                    <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-4">{t.testimonialsTitle}</h2>
+                    <div className="w-20 h-1.5 bg-brand-green mx-auto rounded-full"></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {testimonials.map((testi, idx) => (
+                        <div key={idx} className="glass-card p-8 rounded-[2.5rem] relative">
+                            <span className="absolute top-6 left-6 text-6xl text-brand-green opacity-20 font-serif">“</span>
+                            <div className="relative z-10 space-y-6">
+                                <p className="text-gray-600 dark:text-gray-300 italic font-medium pt-4">{testi.text}</p>
+                                <div className="flex items-center gap-4">
+                                    <img src={testi.avatar} className="w-12 h-12 rounded-full shadow-md" alt={testi.name} />
+                                    <h4 className="font-bold text-gray-900 dark:text-white">{testi.name}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };
