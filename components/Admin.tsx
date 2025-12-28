@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { CoachOnboardingData, MarketItem, UserRole, Language, KnowledgeBaseItem } from '../types';
@@ -66,7 +67,6 @@ const Admin: React.FC = () => {
 
     const handleSaveCoach = (e: React.FormEvent) => {
         e.preventDefault();
-        // Removed check for email since it's optional in register but we use phone for login
         if (!newCoach.name || !newCoach.phone || !newCoach.specialty) {
              showToast('Please fill all required coach fields.', 'error');
              return;
@@ -94,7 +94,7 @@ const Admin: React.FC = () => {
             experienceYears: coach.experienceYears.toString(),
             clientsHelped: coach.clientsHelped.toString(),
             avatar: coach.avatar,
-            password: '' // Don't pre-fill password for security
+            password: '' 
         });
         setEditingCoachId(coach.id);
         setShowAddCoachForm(true);
@@ -402,16 +402,17 @@ const Admin: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
                         <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
                             <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{t.existingQA}</h3>
-                            <div className="max-h-[500px] overflow-y-auto space-y-4">
+                            <p className="text-sm text-gray-500 mb-6 italic">This information serves as the primary brain for the NY11 AI Coach.</p>
+                            <div className="max-h-[500px] overflow-y-auto space-y-4 pr-2">
                                 {knowledgeBase.map(item => (
-                                    <div key={item.id} className="p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                                        <p className="font-bold text-brand-green-dark dark:text-brand-green mb-1">{t.question}: {item.question}</p>
-                                        <p className="text-gray-700 dark:text-gray-300 mb-2">{t.answer}: {item.answer}</p>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-500 italic truncate max-w-[200px]">Keys: {item.keywords.join(', ')}</span>
-                                            <div className="space-x-2 rtl:space-x-reverse">
-                                                <button onClick={() => handleEditKBClick(item)} className="text-blue-500 hover:underline">{t.edit}</button>
-                                                <button onClick={() => handleDeleteKBItem(item.id)} className="text-red-500 hover:underline">{t.delete}</button>
+                                    <div key={item.id} className="p-4 border rounded-2xl dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-brand-green/30 transition-colors">
+                                        <p className="font-black text-brand-green-dark dark:text-brand-green mb-1" dir="auto">{t.question}: {item.question}</p>
+                                        <p className="text-gray-700 dark:text-gray-300 mb-2 leading-relaxed" dir="auto">{t.answer}: {item.answer}</p>
+                                        <div className="flex justify-between items-center text-[10px] mt-4 pt-2 border-t dark:border-gray-700">
+                                            <span className="text-gray-500 font-bold uppercase tracking-widest truncate max-w-[200px]">Keywords: {item.keywords.join(', ')}</span>
+                                            <div className="flex space-x-3 rtl:space-x-reverse">
+                                                <button onClick={() => handleEditKBClick(item)} className="text-blue-500 hover:text-blue-700 font-bold uppercase">{t.edit}</button>
+                                                <button onClick={() => handleDeleteKBItem(item.id)} className="text-red-500 hover:text-red-700 font-bold uppercase">{t.delete}</button>
                                             </div>
                                         </div>
                                     </div>
@@ -420,25 +421,46 @@ const Admin: React.FC = () => {
                         </div>
                          <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
                             <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{editingKBItem ? t.updateQA : t.addNewQA}</h3>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
-                                    <label className="block font-semibold mb-2">{t.question}</label>
-                                    <input type="text" value={newKBItem.question} onChange={(e) => setNewKBItem({...newKBItem, question: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">{t.question}</label>
+                                    <input 
+                                        type="text" 
+                                        value={newKBItem.question} 
+                                        onChange={(e) => setNewKBItem({...newKBItem, question: e.target.value})} 
+                                        className="w-full p-4 rounded-xl border border-gray-100 dark:border-gray-700 dark:bg-gray-800 focus:ring-2 focus:ring-brand-green outline-none transition" 
+                                        dir="auto"
+                                        placeholder="Enter the typical user question..."
+                                    />
                                 </div>
                                 <div>
-                                    <label className="block font-semibold mb-2">{t.answer}</label>
-                                    <textarea value={newKBItem.answer} onChange={(e) => setNewKBItem({...newKBItem, answer: e.target.value})} rows={4} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">{t.answer}</label>
+                                    <textarea 
+                                        value={newKBItem.answer} 
+                                        onChange={(e) => setNewKBItem({...newKBItem, answer: e.target.value})} 
+                                        rows={6} 
+                                        className="w-full p-4 rounded-xl border border-gray-100 dark:border-gray-700 dark:bg-gray-800 focus:ring-2 focus:ring-brand-green outline-none transition" 
+                                        dir="auto"
+                                        placeholder="How should the AI respond to this specific question?"
+                                    />
                                 </div>
                                 <div>
-                                    <label className="block font-semibold mb-2">{t.keywords}</label>
-                                    <input type="text" value={newKBItem.keywords} onChange={(e) => setNewKBItem({...newKBItem, keywords: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">{t.keywords}</label>
+                                    <input 
+                                        type="text" 
+                                        value={newKBItem.keywords} 
+                                        onChange={(e) => setNewKBItem({...newKBItem, keywords: e.target.value})} 
+                                        className="w-full p-4 rounded-xl border border-gray-100 dark:border-gray-700 dark:bg-gray-800 focus:ring-2 focus:ring-brand-green outline-none transition" 
+                                        placeholder="Separate, with, commas"
+                                    />
+                                    <p className="mt-2 text-[10px] text-gray-400 font-medium">Keywords help the AI find the right answer even if the question is worded differently.</p>
                                 </div>
-                                <div className="flex gap-4 pt-2">
-                                     <button onClick={editingKBItem ? handleUpdateKBItem : handleAddKBItem} className="flex-1 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                                <div className="flex gap-4 pt-4">
+                                     <button onClick={editingKBItem ? handleUpdateKBItem : handleAddKBItem} className="flex-1 bg-brand-green text-white py-4 rounded-xl font-bold hover:shadow-glow transition-all">
                                         {editingKBItem ? t.updateQA : t.addQA}
                                     </button>
                                     {editingKBItem && (
-                                        <button onClick={() => { setEditingKBItem(null); setNewKBItem({question: '', answer: '', keywords: ''}); }} className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                                        <button onClick={() => { setEditingKBItem(null); setNewKBItem({question: '', answer: '', keywords: ''}); }} className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-4 rounded-xl font-bold hover:bg-gray-200 transition">
                                             {t.cancel}
                                         </button>
                                     )}
@@ -453,22 +475,25 @@ const Admin: React.FC = () => {
     const TabButton: React.FC<{ tab: AdminTab, label: string }> = ({ tab, label }) => (
         <button
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg font-semibold transition ${activeTab === tab ? 'bg-brand-green text-brand-green-dark' : 'bg-gray-200 dark:bg-dark-card hover:bg-gray-300 dark:hover:bg-gray-700'}`}
+            className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-brand-green text-white shadow-glow-sm scale-105' : 'bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
         >
             {label}
         </button>
     );
 
     return (
-        <div className="p-6 bg-gray-100 dark:bg-dark-bg min-h-screen text-gray-800 dark:text-white">
-            <div className="flex flex-wrap justify-between items-center mb-6 gap-4 no-print">
-                <h1 className="text-4xl font-bold">{t.adminDashboard}</h1>
-                <button onClick={logout} className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition">
+        <div className="p-6 bg-gray-50 dark:bg-dark-bg min-h-screen text-gray-800 dark:text-white">
+            <div className="flex flex-wrap justify-between items-center mb-10 gap-4 no-print max-w-7xl mx-auto">
+                <div>
+                    <h1 className="text-4xl font-black italic text-brand-green">ADMIN <span className="text-gray-900 dark:text-white">PANEL</span></h1>
+                    <p className="text-gray-500 font-medium mt-1">Management Console v1.2</p>
+                </div>
+                <button onClick={logout} className="bg-red-500 text-white px-8 py-3 rounded-full font-bold hover:bg-red-600 hover:shadow-lg transition-all transform active:scale-95">
                     {t.logout}
                 </button>
             </div>
 
-            <div className="mb-6 flex space-x-2 rtl:space-x-reverse overflow-x-auto pb-2 no-print">
+            <div className="mb-10 flex space-x-3 rtl:space-x-reverse overflow-x-auto pb-4 no-print max-w-7xl mx-auto scrollbar-hide">
                 <TabButton tab="accounts" label={t.users} />
                 <TabButton tab="coaches" label={t.coaches} />
                 <TabButton tab="ai-config" label={t.aiConfig} />
@@ -477,7 +502,7 @@ const Admin: React.FC = () => {
                 <TabButton tab="store" label={t.storeManagement} />
             </div>
 
-            <div>
+            <div className="max-w-7xl mx-auto">
                 {renderContent()}
             </div>
         </div>

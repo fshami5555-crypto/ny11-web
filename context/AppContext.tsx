@@ -274,33 +274,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
             const knowledgeContext = knowledgeBase.map(kb => 
-                `Q: ${kb.question}\nA: ${kb.answer}`
+                `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`
             ).join('\n---\n');
 
-            const systemInstruction = `You are the NY11 AI Nutrition & Health Expert.
+            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach.
             
-            Persona:
-            - Professional, motivating, and strictly health-focused.
-            - Expert in nutrition, fitness, hydration, and overall wellness.
+            YOUR MISSION:
+            Provide world-class advice on health, nutrition, and fitness while acting as the primary support for the NY11 platform.
             
-            Sources of Knowledge:
-            1. PRIMARY SOURCE (Internal Admin Data): Use the provided data below for platform-specific questions (subscription, company rules, specific breakfast recommendations).
-            2. SECONDARY SOURCE (General Expertise): If the user's question isn't in the internal data, use your advanced medical and nutrition knowledge as a world-class health coach.
+            KNOWLEDGE SOURCES:
+            1. INTERNAL NY11 KNOWLEDGE (CRITICAL): Use the data below to answer platform-specific questions (about the app, services, company rules, etc.). If the data is in Arabic and the user asks in English (or vice versa), translate the answer accurately.
+            2. GENERAL HEALTH KNOWLEDGE: For general health questions not covered by internal data, use your advanced knowledge as an expert nutritionist and fitness coach.
             
-            INTERNAL ADMIN KNOWLEDGE BASE:
+            NY11 INTERNAL DATA:
             ${knowledgeContext}
             
-            Rules:
-            - Never say "I don't have enough info" unless the question is completely unrelated to health or the app.
-            - Always prefer the Internal Admin data if relevant.
-            - Keep answers brief and encouraging.
-            - Respond in ${language === Language.AR ? 'Arabic' : 'English'}.`;
+            GUIDELINES:
+            - Always prioritize internal data for platform questions.
+            - If a user asks in any language, answer in that same language. 
+            - Use a motivating, professional, and friendly tone.
+            - Keep answers concise but comprehensive.
+            - If a question is completely unrelated to health or NY11, politely refocus the conversation.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3-flash-preview',
                 contents: userQuestion,
                 config: {
                     systemInstruction: systemInstruction,
+                    temperature: 0.7,
                 }
             });
 
