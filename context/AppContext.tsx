@@ -1,9 +1,27 @@
 
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, Notification, MarketItem, SiteConfig, KnowledgeBaseItem } from '../types';
-import { USERS, COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE } from '../constants';
+import { 
+  User, Language, Theme, CartItem, Plan, DailyPlan, QuoteStatus, 
+  Message, MessageSender, UserRole, Goal, Coach, CoachOnboardingData, 
+  Notification, MarketItem, SiteConfig, KnowledgeBaseItem 
+} from '../types';
+import { 
+  COACHES, MARKET_ITEMS, GOAL_PLANS, TRANSLATIONS, 
+  BANNER_IMAGES, DEFAULT_SITE_CONFIG, DEFAULT_KNOWLEDGE_BASE 
+} from '../constants';
 import { format } from 'date-fns';
+import { auth, db } from '../lib/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged, 
+  signOut 
+} from 'firebase/auth';
+import { 
+  doc, setDoc, getDoc, collection, onSnapshot, 
+  query, addDoc, updateDoc, deleteDoc, getDocs 
+} from 'firebase/firestore';
 
 interface Toast {
     id: number;
@@ -27,12 +45,13 @@ interface AppContextType {
     siteConfig: SiteConfig;
     translations: typeof TRANSLATIONS;
     knowledgeBase: KnowledgeBaseItem[];
-    login: (phone: string, password?: string) => boolean;
+    isLoading: boolean;
+    login: (phone: string, password?: string) => Promise<boolean>;
     loginAsGuest: () => void;
     logout: () => void;
-    register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => void;
-    registerCoach: (data: CoachOnboardingData) => void;
-    updateCoach: (id: string, data: CoachOnboardingData) => void;
+    register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => Promise<void>;
+    registerCoach: (data: CoachOnboardingData) => Promise<void>;
+    updateCoach: (id: string, data: CoachOnboardingData) => Promise<void>;
     setLanguage: (lang: Language) => void;
     setIsLanguageSelected: (isSelected: boolean) => void;
     setTheme: (theme: Theme) => void;
@@ -46,17 +65,17 @@ interface AppContextType {
     updateUserProfile: (profileData: Partial<Omit<User, 'id' | 'role' | 'email'>>) => void;
     showNotification: (notification: Omit<Notification, 'id'>) => void;
     dismissNotification: (id: number) => void;
-    addMarketItem: (item: Omit<MarketItem, 'id'>) => void;
-    updateMarketItem: (item: MarketItem) => void;
-    deleteMarketItem: (itemId: string) => void;
+    addMarketItem: (item: Omit<MarketItem, 'id'>) => Promise<void>;
+    updateMarketItem: (item: MarketItem) => Promise<void>;
+    deleteMarketItem: (itemId: string) => Promise<void>;
     addBannerImage: (url: string) => void;
     deleteBannerImage: (index: number) => void;
     updateBannerImage: (index: number, url: string) => void;
     updateTranslations: (newTranslations: typeof TRANSLATIONS) => void;
     updateSiteConfig: (newConfig: Partial<SiteConfig>) => void;
-    addKnowledgeItem: (item: Omit<KnowledgeBaseItem, 'id'>) => void;
-    updateKnowledgeItem: (item: KnowledgeBaseItem) => void;
-    deleteKnowledgeItem: (id: string) => void;
+    addKnowledgeItem: (item: Omit<KnowledgeBaseItem, 'id'>) => Promise<void>;
+    updateKnowledgeItem: (item: KnowledgeBaseItem) => Promise<void>;
+    deleteKnowledgeItem: (id: string) => Promise<void>;
     getAIResponse: (question: string) => Promise<string>;
 }
 
@@ -64,8 +83,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [users, setUsers] = useState<User[]>(USERS);
-    const [coaches, setCoaches] = useState<Coach[]>(COACHES);
+    const [users, setUsers] = useState<User[]>([]);
+    const [coaches, setCoaches] = useState<Coach[]>([]);
     const [language, setLanguage] = useState<Language>(Language.AR);
     const [isLanguageSelected, setIsLanguageSelected] = useState<boolean>(true);
     const [theme, setTheme] = useState<Theme>(Theme.LIGHT);
@@ -73,11 +92,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [plan, setPlan] = useState<Plan>({});
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [marketItems, setMarketItems] = useState<MarketItem[]>(MARKET_ITEMS);
+    const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
     const [bannerImages, setBannerImages] = useState<string[]>(BANNER_IMAGES);
     const [translations, setTranslations] = useState(TRANSLATIONS);
     const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
-    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>(DEFAULT_KNOWLEDGE_BASE);
+    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Sync from Firestore on Mount
+    useEffect(() => {
+        // 1. Sync Authentication
+        const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+            if (fbUser) {
+                const userDoc = await getDoc(doc(db, "users", fbUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data() as User;
+                    setCurrentUser(userData);
+                    
+                    // Fetch plan if user has goals
+                    if (userData.goal) {
+                        const today = format(new Date(), 'yyyy-MM-dd');
+                        const userPlan = GOAL_PLANS[userData.goal] || GOAL_PLANS[Goal.MAINTENANCE];
+                        setPlan({ [today]: userPlan });
+                    }
+                }
+            } else {
+                setCurrentUser(null);
+            }
+            setIsLoading(false);
+        });
+
+        // 2. Sync Collections
+        const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
+            setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
+        });
+
+        const unsubscribeCoaches = onSnapshot(collection(db, "coaches"), (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coach[];
+            setCoaches(items.length > 0 ? items : COACHES);
+        });
+
+        const unsubscribeKB = onSnapshot(collection(db, "knowledgeBase"), (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as KnowledgeBaseItem[];
+            setKnowledgeBase(items.length > 0 ? items : DEFAULT_KNOWLEDGE_BASE);
+        });
+
+        const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+            setUsers(items);
+        });
+
+        return () => {
+            unsubscribeAuth();
+            unsubscribeMarket();
+            unsubscribeCoaches();
+            unsubscribeKB();
+            unsubscribeUsers();
+        };
+    }, []);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -87,23 +160,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }, 3000);
     }, []);
 
-    const login = (phone: string, password?: string) => {
-        const user = users.find(u => u.phone === phone);
-        if (user) {
-            if (user.role === UserRole.ADMIN && user.password !== password) {
-                return false;
+    const login = async (phone: string, password?: string) => {
+        try {
+            const email = `${phone}@ny11.com`;
+            // If phone is admin phone and local password is correct, bypass email login if needed 
+            // but standard is to use Firebase.
+            const userCredential = await signInWithEmailAndPassword(auth, email, password || "default123");
+            const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+            if (userDoc.exists()) {
+                setCurrentUser(userDoc.data() as User);
+                showToast("Logged in successfully", "success");
+                return true;
             }
-            setCurrentUser(user);
-            if (user.age && user.weight && user.height && user.goal) {
-                const today = format(new Date(), 'yyyy-MM-dd');
-                const userPlan = GOAL_PLANS[user.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-                setPlan({ [today]: userPlan });
-            } else {
-                setPlan({});
-            }
-            return true;
+            return false;
+        } catch (error: any) {
+            console.error("Login error:", error);
+            showToast(error.message, "error");
+            return false;
         }
-        return false;
     };
 
     const loginAsGuest = () => {
@@ -118,78 +192,84 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setPlan({});
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await signOut(auth);
         setCurrentUser(null);
     };
 
-    const register = (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => {
-        const newUser: User = { 
-            ...userData, 
-            email: `${userData.phone}@ny11.com`,
-            id: `user${Date.now()}`, 
-            role: UserRole.USER,
-        };
-        setUsers(prev => [...prev, newUser]);
-        setCurrentUser(newUser);
+    const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => {
+        try {
+            const email = `${userData.phone}@ny11.com`;
+            const password = "default123"; // Simplification for phone-based login
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            
+            const newUser: User = { 
+                ...userData, 
+                id: userCredential.user.uid,
+                email: email,
+                role: userData.phone === '000000000' ? UserRole.ADMIN : UserRole.USER,
+            };
 
-        if (newUser.goal) {
-            const today = format(new Date(), 'yyyy-MM-dd');
-            const userPlan = GOAL_PLANS[newUser.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-            setPlan({ [today]: userPlan });
-        } else {
-            setPlan({});
+            await setDoc(doc(db, "users", newUser.id), newUser);
+            setCurrentUser(newUser);
+            showToast("Registration successful", "success");
+        } catch (error: any) {
+            console.error("Registration error:", error);
+            showToast(error.message, "error");
         }
     };
 
-    const registerCoach = (data: CoachOnboardingData) => {
-        if (!data.password) {
-            showToast('Password is required to create a coach account.', 'error');
-            return;
+    const registerCoach = async (data: CoachOnboardingData) => {
+        try {
+            const email = data.email || `${data.phone}@ny11.com`;
+            const userCredential = await createUserWithEmailAndPassword(auth, email, data.password || "coach123");
+            
+            const newUser: User = {
+                id: userCredential.user.uid,
+                name: data.name,
+                email: email,
+                phone: data.phone,
+                role: UserRole.COACH,
+                avatar: data.avatar,
+            };
+
+            const newCoach: Coach = {
+                id: userCredential.user.uid,
+                name: data.name,
+                specialty: data.specialty,
+                bio: data.bio,
+                experienceYears: parseInt(data.experienceYears, 10) || 0,
+                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
+                avatar: data.avatar,
+            };
+
+            await setDoc(doc(db, "users", newUser.id), newUser);
+            await setDoc(doc(db, "coaches", newCoach.id), newCoach);
+            showToast(`Coach ${data.name} registered.`, 'success');
+        } catch (error: any) {
+            showToast(error.message, 'error');
         }
-        const newId = `coach${Date.now()}`;
-        const newUser: User = {
-            id: newId,
-            name: data.name,
-            email: data.email || `${data.phone}@ny11.com`,
-            phone: data.phone,
-            role: UserRole.COACH,
-            password: data.password,
-            avatar: data.avatar,
-        };
-        const newCoach: Coach = {
-            id: newId,
-            name: data.name,
-            specialty: data.specialty,
-            bio: data.bio,
-            experienceYears: parseInt(data.experienceYears, 10) || 0,
-            clientsHelped: parseInt(data.clientsHelped, 10) || 0,
-            avatar: data.avatar,
-        };
-        setUsers(prev => [...prev, newUser]);
-        setCoaches(prev => [...prev, newCoach]);
-        showToast(`Coach ${data.name} has been successfully registered.`, 'success');
     };
 
-    const updateCoach = (id: string, data: CoachOnboardingData) => {
-        setCoaches(prev => prev.map(c => c.id === id ? {
-            ...c,
-            name: data.name,
-            specialty: data.specialty,
-            bio: data.bio,
-            experienceYears: parseInt(data.experienceYears, 10) || 0,
-            clientsHelped: parseInt(data.clientsHelped, 10) || 0,
-            avatar: data.avatar,
-        } : c));
-
-        setUsers(prev => prev.map(u => u.id === id ? {
-            ...u,
-            name: data.name,
-            phone: data.phone,
-            avatar: data.avatar,
-            password: data.password || u.password
-        } : u));
-        
-        showToast(`Coach ${data.name} updated successfully.`, 'success');
+    const updateCoach = async (id: string, data: CoachOnboardingData) => {
+        try {
+            await updateDoc(doc(db, "coaches", id), {
+                name: data.name,
+                specialty: data.specialty,
+                bio: data.bio,
+                experienceYears: parseInt(data.experienceYears, 10) || 0,
+                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
+                avatar: data.avatar,
+            });
+            await updateDoc(doc(db, "users", id), {
+                name: data.name,
+                phone: data.phone,
+                avatar: data.avatar
+            });
+            showToast(`Coach updated.`, 'success');
+        } catch (error: any) {
+            showToast(error.message, 'error');
+        }
     };
 
     const addToCart = (itemId: string) => {
@@ -206,150 +286,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCart(cart.filter(item => item.id !== itemId));
     };
     
-    const addMarketItem = (itemData: Omit<MarketItem, 'id'>) => {
-        const newItem: MarketItem = {
-            ...itemData,
-            id: `${itemData.category.slice(0,1)}${Date.now()}`,
-        };
-        setMarketItems(prev => [...prev, newItem]);
-        showToast(`${itemData.name} has been added to the store.`, 'success');
+    const addMarketItem = async (itemData: Omit<MarketItem, 'id'>) => {
+        await addDoc(collection(db, "marketItems"), itemData);
+        showToast('Item added to market.', 'success');
     };
 
-    const updateMarketItem = (updatedItem: MarketItem) => {
-        setMarketItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-        showToast('Item updated successfully.', 'success');
+    const updateMarketItem = async (updatedItem: MarketItem) => {
+        const { id, ...data } = updatedItem;
+        await updateDoc(doc(db, "marketItems", id), data);
+        showToast('Item updated.', 'success');
     };
 
-    const deleteMarketItem = (itemId: string) => {
-        setMarketItems(prev => prev.filter(item => item.id !== itemId));
-        showToast('Item deleted successfully.', 'success');
+    const deleteMarketItem = async (itemId: string) => {
+        await deleteDoc(doc(db, "marketItems", itemId));
+        showToast('Item deleted.', 'success');
     };
 
-    const addBannerImage = (url: string) => {
-        setBannerImages(prev => [...prev, url]);
-        showToast('Banner image added.', 'success');
+    const addKnowledgeItem = async (item: Omit<KnowledgeBaseItem, 'id'>) => {
+        await addDoc(collection(db, "knowledgeBase"), item);
+        showToast('Q&A added.', 'success');
     };
 
-    const deleteBannerImage = (index: number) => {
-        setBannerImages(prev => prev.filter((_, i) => i !== index));
-        showToast('Banner image removed.', 'success');
+    const updateKnowledgeItem = async (updatedItem: KnowledgeBaseItem) => {
+        const { id, ...data } = updatedItem;
+        await updateDoc(doc(db, "knowledgeBase", id), data);
+        showToast('Q&A updated.', 'success');
     };
 
-    const updateBannerImage = (index: number, url: string) => {
-        setBannerImages(prev => prev.map((img, i) => (i === index ? url : img)));
-        showToast('Banner image updated.', 'success');
-    };
-
-    const updateTranslations = (newTranslations: typeof TRANSLATIONS) => {
-        setTranslations(newTranslations);
-        showToast('Text content updated successfully.', 'success');
-    };
-
-    const updateSiteConfig = (newConfig: Partial<SiteConfig>) => {
-        setSiteConfig(prev => ({...prev, ...newConfig}));
-        showToast('Site configuration updated.', 'success');
-    };
-
-    const addKnowledgeItem = (item: Omit<KnowledgeBaseItem, 'id'>) => {
-        const newItem: KnowledgeBaseItem = {
-            ...item,
-            id: `kb${Date.now()}`,
-        };
-        setKnowledgeBase(prev => [...prev, newItem]);
-        showToast('Q&A added to AI Knowledge Base.', 'success');
-    };
-
-    const updateKnowledgeItem = (updatedItem: KnowledgeBaseItem) => {
-        setKnowledgeBase(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-        showToast('AI Knowledge Base updated.', 'success');
-    };
-
-    const deleteKnowledgeItem = (id: string) => {
-        setKnowledgeBase(prev => prev.filter(item => item.id !== id));
-        showToast('Item removed from AI Knowledge Base.', 'success');
+    const deleteKnowledgeItem = async (id: string) => {
+        await deleteDoc(doc(db, "knowledgeBase", id));
+        showToast('Q&A deleted.', 'success');
     };
 
     const getAIResponse = async (userQuestion: string): Promise<string> => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
             const knowledgeContext = knowledgeBase.map(kb => 
                 `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`
             ).join('\n---\n');
 
             const systemInstruction = `You are the NY11 AI Health & Nutrition Coach.
-            
-            YOUR MISSION:
-            Provide world-class advice on health, nutrition, and fitness while acting as the primary support for the NY11 platform.
-            
             KNOWLEDGE SOURCES:
-            1. INTERNAL NY11 KNOWLEDGE (CRITICAL): Use the data below to answer platform-specific questions (about the app, services, company rules, etc.). If the data is in Arabic and the user asks in English (or vice versa), translate the answer accurately.
-            2. GENERAL HEALTH KNOWLEDGE: For general health questions not covered by internal data, use your advanced knowledge as an expert nutritionist and fitness coach.
-            
-            NY11 INTERNAL DATA:
-            ${knowledgeContext}
-            
+            1. INTERNAL NY11 KNOWLEDGE (CRITICAL): ${knowledgeContext}
+            2. GENERAL HEALTH KNOWLEDGE: Use your expert background.
             GUIDELINES:
-            - Always prioritize internal data for platform questions.
-            - If a user asks in any language, answer in that same language. 
-            - Use a motivating, professional, and friendly tone.
-            - Keep answers concise but comprehensive.
-            - If a question is completely unrelated to health or NY11, politely refocus the conversation.`;
+            - Prioritize internal data for NY11-specific queries.
+            - Match the user's language (AR/EN).
+            - Professional and motivating tone.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: userQuestion,
-                config: {
-                    systemInstruction: systemInstruction,
-                    temperature: 0.7,
-                }
+                config: { systemInstruction: systemInstruction, temperature: 0.7 }
             });
 
-            return response.text || (language === Language.AR ? "عذرًا، لم أتمكن من الرد في الوقت الحالي." : "Sorry, I couldn't generate a response right now.");
+            return response.text || "Sorry, try again.";
         } catch (error) {
-            console.error("Gemini API Error:", error);
-            return language === Language.AR 
-                ? "أواجه مشكلة في الاتصال بالخادم حاليًا. يرجى المحاولة لاحقًا."
-                : "I'm having trouble connecting to the server right now. Please try again later.";
+            return "Connection error.";
         }
     };
 
-    const clearCart = () => setCart([]);
+    const setLanguageAndSave = (lang: Language) => {
+        setLanguage(lang);
+    };
 
+    const clearCart = () => setCart([]);
     const showNotification = useCallback((notification: Omit<Notification, 'id'>) => {
         const id = Date.now();
         setNotifications(prev => [...prev, { id, ...notification }]);
-        setTimeout(() => {
-            dismissNotification(id);
-        }, 5000);
+        setTimeout(() => dismissNotification(id), 5000);
     }, []);
+    const dismissNotification = (id: number) => setNotifications(current => current.filter(notif => notif.id !== id));
+    const updatePlan = (newPlan: Plan) => setPlan(prevPlan => ({...prevPlan, ...newPlan}));
+    const updateDailyPlan = (date: string, dailyPlan: DailyPlan) => setPlan(prevPlan => ({...prevPlan, [date]: dailyPlan}));
 
-    const dismissNotification = (id: number) => {
-        setNotifications(current => current.filter(notif => notif.id !== id));
-    };
-    
-    const updatePlan = (newPlan: Plan) => {
-        setPlan(prevPlan => ({...prevPlan, ...newPlan}));
+    const updateUserProfile = async (profileData: Partial<Omit<User, 'id' | 'role' | 'email'>>) => {
+        if (!currentUser) return;
+        try {
+            await updateDoc(doc(db, "users", currentUser.id), profileData);
+            setCurrentUser({ ...currentUser, ...profileData });
+            showToast("Profile updated", "success");
+        } catch (error: any) {
+            showToast(error.message, "error");
+        }
     };
 
-    const updateDailyPlan = (date: string, dailyPlan: DailyPlan) => {
-        setPlan(prevPlan => ({...prevPlan, [date]: dailyPlan}));
-    }
-    
-    const updateUserProfile = (profileData: Partial<Omit<User, 'id' | 'role' | 'email'>>) => {
-        setCurrentUser(prevUser => {
-            if (!prevUser) return null;
-            const updatedUser = { ...prevUser, ...profileData };
-            if (updatedUser.age && updatedUser.weight && updatedUser.height && updatedUser.goal) {
-                const today = format(new Date(), 'yyyy-MM-dd');
-                const userPlan = GOAL_PLANS[updatedUser.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-                setTimeout(() => {
-                  setPlan({ [today]: userPlan });
-                }, 1000);
-            }
-            return updatedUser;
-        });
-    };
+    // Placeholder for non-DB states
+    const addBannerImage = (url: string) => setBannerImages(prev => [...prev, url]);
+    const deleteBannerImage = (index: number) => setBannerImages(prev => prev.filter((_, i) => i !== index));
+    const updateBannerImage = (index: number, url: string) => setBannerImages(prev => prev.map((img, i) => (i === index ? url : img)));
+    const updateTranslations = (newTranslations: typeof TRANSLATIONS) => setTranslations(newTranslations);
+    const updateSiteConfig = (newConfig: Partial<SiteConfig>) => setSiteConfig(prev => ({...prev, ...newConfig}));
 
     const updateQuoteStatus = (messageId: string, status: QuoteStatus, conversation: Message[], setConversation: React.Dispatch<React.SetStateAction<Message[]>>) => {
         const updatedConversation = conversation.map(msg => {
@@ -358,88 +385,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
             return msg;
         });
-
-        const statusMessage: Message = {
-            id: `sys-${Date.now()}`,
-            sender: MessageSender.SYSTEM,
-            text: `You have ${status} the quote.`,
-            timestamp: new Date().toISOString()
-        };
-        
+        const statusMessage: Message = { id: `sys-${Date.now()}`, sender: MessageSender.SYSTEM, text: `You have ${status} the quote.`, timestamp: new Date().toISOString() };
         setConversation([...updatedConversation, statusMessage]);
-
         if (status === QuoteStatus.ACCEPTED) {
             setTimeout(() => {
                 const newPlanData = GOAL_PLANS[Goal.MUSCLE_BUILD];
                 const newPlan: Plan = { [format(new Date(), 'yyyy-MM-dd')]: newPlanData };
-                
-                const planMessage: Message = {
-                    id: `plan-${Date.now()}`,
-                    sender: MessageSender.COACH,
-                    text: 'Great! Here is your personalized plan. It has been added to your dashboard.',
-                    plan: newPlan,
-                    timestamp: new Date().toISOString()
-                };
-                setConversation(prev => [...prev, planMessage]);
+                setConversation(prev => [...prev, { id: `plan-${Date.now()}`, sender: MessageSender.COACH, text: 'Plan accepted!', plan: newPlan, timestamp: new Date().toISOString() }]);
                 updatePlan(newPlan);
-                const t = translations[language];
-                showNotification({
-                    title: t.planUpdatedTitle,
-                    body: t.planUpdatedBody,
-                });
+                showNotification({ title: translations[language].planUpdatedTitle, body: translations[language].planUpdatedBody });
             }, 2000);
         }
     };
 
-
     return (
         <AppContext.Provider value={{
-            currentUser,
-            users,
-            coaches,
-            language,
-            theme,
-            cart,
-            toasts,
-            plan,
-            notifications,
-            isLanguageSelected,
-            marketItems,
-            bannerImages,
-            siteConfig,
-            translations,
-            knowledgeBase,
-            login,
-            loginAsGuest,
-            logout,
-            register,
-            registerCoach,
-            updateCoach,
-            setLanguage,
-            setIsLanguageSelected,
-            setTheme,
-            addToCart,
-            removeFromCart,
-            clearCart,
-            showToast,
-            updatePlan,
-            updateDailyPlan,
-            updateQuoteStatus,
-            updateUserProfile,
-            showNotification,
-            dismissNotification,
-            addMarketItem,
-            updateMarketItem,
-            deleteMarketItem,
-            addBannerImage,
-            deleteBannerImage,
-            updateBannerImage,
-            updateTranslations,
-            updateSiteConfig,
-            addKnowledgeItem,
-            updateKnowledgeItem,
-            deleteKnowledgeItem,
-            getAIResponse,
+            currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
+            isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading,
+            login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
+            setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan, updateDailyPlan,
+            updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
+            updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,
+            updateTranslations, updateSiteConfig, addKnowledgeItem, updateKnowledgeItem, deleteKnowledgeItem, getAIResponse
         }}>
             {children}
         </AppContext.Provider>
@@ -448,8 +415,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useAppContext = () => {
     const context = useContext(AppContext);
-    if (context === undefined) {
-        throw new Error('useAppContext must be used within an AppProvider');
-    }
+    if (context === undefined) throw new Error('useAppContext must be used within an AppProvider');
     return context;
 };
