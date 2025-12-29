@@ -81,6 +81,8 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const ADMIN_PHONES = ['000000000', '00000000', '0597288408'];
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
@@ -111,9 +113,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
             if (fbUser) {
                 try {
-                    const userDoc = await getDoc(doc(db, "users", fbUser.uid));
+                    const userDocRef = doc(db, "users", fbUser.uid);
+                    const userDoc = await getDoc(userDocRef);
                     if (userDoc.exists()) {
-                        const userData = userDoc.data() as User;
+                        let userData = userDoc.data() as User;
+                        
+                        // AUTO-UPGRADE TO ADMIN IF PHONE MATCHES
+                        if (ADMIN_PHONES.includes(userData.phone) && userData.role !== UserRole.ADMIN) {
+                            await updateDoc(userDocRef, { role: UserRole.ADMIN });
+                            userData = { ...userData, role: UserRole.ADMIN };
+                            console.log("User auto-upgraded to Admin:", userData.phone);
+                        }
+
                         setCurrentUser(userData);
                         if (userData.goal) {
                             const today = format(new Date(), 'yyyy-MM-dd');
@@ -130,16 +141,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         });
 
+        // Listeners
         const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
             setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
         });
-
         const unsubscribeCoaches = onSnapshot(collection(db, "coaches"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coach[];
             setCoaches(items.length > 0 ? items : COACHES);
         });
-
         const unsubscribeKB = onSnapshot(collection(db, "knowledgeBase"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as KnowledgeBaseItem[];
             setKnowledgeBase(items.length > 0 ? items : DEFAULT_KNOWLEDGE_BASE);
@@ -158,73 +168,63 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setUsers([]);
             return;
         }
-
         const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
             setUsers(items);
         }, (error) => {
-            if (error.code !== 'permission-denied') {
-                console.error("Admin Users Listener Error:", error);
-            }
+            if (error.code !== 'permission-denied') console.error("Admin Users Listener Error:", error);
         });
-
         return () => unsubscribeUsers();
     }, [currentUser]);
 
     const login = async (phone: string, password?: string) => {
+        setIsLoading(true);
         try {
-            const email = `${phone}@ny11.com`;
-            // USE PROVIDED PASSWORD or fallback to default for legacy compatibility
+            const trimmedPhone = phone.trim();
+            const email = `${trimmedPhone}@ny11.com`;
             const pass = password || "default123";
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+            
             if (userDoc.exists()) {
-                setCurrentUser(userDoc.data() as User);
+                let userData = userDoc.data() as User;
+                if (ADMIN_PHONES.includes(trimmedPhone) && userData.role !== UserRole.ADMIN) {
+                    await updateDoc(doc(db, "users", userCredential.user.uid), { role: UserRole.ADMIN });
+                    userData.role = UserRole.ADMIN;
+                }
+                setCurrentUser(userData);
                 showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Logged in successfully", "success");
                 return true;
             }
             return false;
         } catch (error: any) {
-            console.error("Login detail error:", error);
-            let errorMsg = language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials";
-            
-            if (error.code === 'auth/invalid-credential') {
-                errorMsg = language === Language.AR 
-                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من التسجيل أولاً بنفس البيانات." 
-                    : "Invalid credentials. Please ensure you are registered with these details.";
-            } else if (error.code === 'auth/user-not-found') {
-                errorMsg = language === Language.AR ? "المستخدم غير موجود" : "User not found";
-            } else if (error.code === 'auth/wrong-password') {
-                errorMsg = language === Language.AR ? "كلمة المرور خاطئة" : "Wrong password";
+            console.error("Login Error:", error.code, error.message);
+            let msg = language === Language.AR ? "خطأ في تسجيل الدخول" : "Login error";
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                msg = language === Language.AR 
+                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من إنشاء الحساب أولاً بنفس البيانات." 
+                    : "Invalid phone or password. Make sure you registered with these details.";
             }
-            
-            showToast(errorMsg, "error");
+            showToast(msg, "error");
             return false;
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const loginAsGuest = () => {
-        setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
-        setPlan({});
-    };
-
-    const logout = async () => {
-        await signOut(auth);
-        setCurrentUser(null);
-    };
-
     const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>, customPassword?: string) => {
+        setIsLoading(true);
         try {
-            const email = `${userData.phone}@ny11.com`;
+            const trimmedPhone = userData.phone.trim();
+            const email = `${trimmedPhone}@ny11.com`;
             const password = customPassword || "default123";
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
-            // ADMIN WHITELIST
-            const adminPhones = ['000000000', '00000000', '0597288408'];
-            const isAdmin = adminPhones.includes(userData.phone);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const isAdmin = ADMIN_PHONES.includes(trimmedPhone);
             
             const newUser: User = { 
                 ...userData, 
+                phone: trimmedPhone,
                 id: userCredential.user.uid,
                 email: email,
                 role: isAdmin ? UserRole.ADMIN : UserRole.USER,
@@ -232,12 +232,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             await setDoc(doc(db, "users", newUser.id), newUser);
             setCurrentUser(newUser);
-            showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Registration successful", "success");
+            showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created successfully", "success");
         } catch (error: any) {
-            showToast(error.message, "error");
+            console.error("Register Error:", error.code, error.message);
+            let msg = error.message;
+            if (error.code === 'auth/email-already-in-use') {
+                msg = language === Language.AR ? "رقم الهاتف مسجل مسبقاً، يرجى تسجيل الدخول" : "Phone number already registered. Please login.";
+            } else if (error.code === 'auth/weak-password') {
+                msg = language === Language.AR ? "كلمة المرور ضعيفة جداً" : "Password is too weak.";
+            }
+            showToast(msg, "error");
+        } finally {
+            setIsLoading(false);
         }
     };
 
+    const logout = async () => {
+        await signOut(auth);
+        setCurrentUser(null);
+    };
+
+    const loginAsGuest = () => {
+        setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
+        setPlan({});
+    };
+
+    // Helper functions for Admin/Context updates
     const registerCoach = async (data: CoachOnboardingData) => {
         try {
             const email = data.email || `${data.phone}@ny11.com`;
@@ -249,7 +269,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showToast(`Coach ${data.name} registered.`, 'success');
         } catch (error: any) { showToast(error.message, 'error'); }
     };
-
     const updateCoach = async (id: string, data: CoachOnboardingData) => {
         try {
             await updateDoc(doc(db, "coaches", id), { name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar });
@@ -257,13 +276,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showToast(`Coach updated.`, 'success');
         } catch (error: any) { showToast(error.message, 'error'); }
     };
-
     const addToCart = (itemId: string) => {
         const itemToAdd = cart.find(i => i.id === itemId);
         if (itemToAdd) setCart(cart.map(item => item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item));
         else { const newItem = marketItems.find((i) => i.id === itemId); if(newItem) setCart([...cart, { ...newItem, quantity: 1 }]); }
     };
-    
     const removeFromCart = (itemId: string) => setCart(cart.filter(item => item.id !== itemId));
     const addMarketItem = async (itemData: Omit<MarketItem, 'id'>) => { await addDoc(collection(db, "marketItems"), itemData); showToast('Item added.', 'success'); };
     const updateMarketItem = async (updatedItem: MarketItem) => { const { id, ...data } = updatedItem; await updateDoc(doc(db, "marketItems", id), data); showToast('Item updated.', 'success'); };

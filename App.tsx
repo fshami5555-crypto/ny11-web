@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import MainApp from './components/MainApp';
@@ -5,7 +6,7 @@ import { UserRole } from './types';
 import Admin from './components/Admin';
 
 const AppContent: React.FC = () => {
-    const { currentUser, language, theme } = useAppContext();
+    const { currentUser, language, theme, isLoading } = useAppContext();
     const [showSplash, setShowSplash] = useState(true);
 
     useEffect(() => {
@@ -23,7 +24,7 @@ const AppContent: React.FC = () => {
         }
     }, [language, theme]);
 
-    if (showSplash) {
+    if (showSplash || isLoading) {
         return <SplashScreen />;
     }
 
