@@ -77,7 +77,7 @@ interface AppContextType {
     addKnowledgeItem: (item: Omit<KnowledgeBaseItem, 'id'>) => Promise<void>;
     updateKnowledgeItem: (item: KnowledgeBaseItem) => Promise<void>;
     deleteKnowledgeItem: (id: string) => Promise<void>;
-    getAIResponse: (question: string) => Promise<string>;
+    getAIResponse: (userQuestion: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -100,8 +100,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [translations, setTranslations] = useState(TRANSLATIONS);
     const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
     const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true); // Used for initial splash only
-    const [isActionLoading, setIsActionLoading] = useState(false); // Used for buttons
+    const [isLoading, setIsLoading] = useState(true);
+    const [isActionLoading, setIsActionLoading] = useState(false);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -111,43 +111,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }, 4000);
     }, []);
 
-    const createAdminDoc = async (uid: string, phone: string) => {
+    const syncAdminData = async (uid: string, phone: string) => {
+        const userDocRef = doc(db, "users", uid);
+        const userDoc = await getDoc(userDocRef);
         const email = `${phone}@ny11.com`;
-        const adminUser: User = {
-            id: uid,
-            name: "Admin",
-            phone: phone,
-            email: email,
-            role: UserRole.ADMIN,
-        };
-        await setDoc(doc(db, "users", uid), adminUser);
-        return adminUser;
+        
+        let userData: User;
+        if (!userDoc.exists()) {
+            userData = { id: uid, name: "Admin NY11", phone, email, role: UserRole.ADMIN };
+            await setDoc(userDocRef, userData);
+        } else {
+            userData = userDoc.data() as User;
+            if (userData.role !== UserRole.ADMIN) {
+                await updateDoc(userDocRef, { role: UserRole.ADMIN });
+                userData.role = UserRole.ADMIN;
+            }
+        }
+        return userData;
     };
 
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
             if (fbUser) {
-                try {
-                    const userDocRef = doc(db, "users", fbUser.uid);
-                    const userDoc = await getDoc(userDocRef);
-                    
+                const phone = fbUser.email?.split('@')[0] || '';
+                if (ADMIN_PHONES.includes(phone)) {
+                    const adminData = await syncAdminData(fbUser.uid, phone);
+                    setCurrentUser(adminData);
+                } else {
+                    const userDoc = await getDoc(doc(db, "users", fbUser.uid));
                     if (userDoc.exists()) {
-                        let userData = userDoc.data() as User;
-                        if (ADMIN_PHONES.includes(userData.phone) && userData.role !== UserRole.ADMIN) {
-                            await updateDoc(userDocRef, { role: UserRole.ADMIN });
-                            userData = { ...userData, role: UserRole.ADMIN };
-                        }
-                        setCurrentUser(userData);
-                    } else {
-                        // If Auth exists but Doc doesn't, and it's an admin number, create it
-                        const phone = fbUser.email?.split('@')[0];
-                        if (phone && ADMIN_PHONES.includes(phone)) {
-                            const adminData = await createAdminDoc(fbUser.uid, phone);
-                            setCurrentUser(adminData);
-                        }
+                        setCurrentUser(userDoc.data() as User);
                     }
-                } catch (e) {
-                    console.error("Auth User Sync Error:", e);
                 }
             } else {
                 setCurrentUser(null);
@@ -155,69 +149,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         });
 
-        // Other Listeners
         const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
             setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
         });
+
         const unsubscribeCoaches = onSnapshot(collection(db, "coaches"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Coach[];
             setCoaches(items.length > 0 ? items : COACHES);
-        });
-        const unsubscribeKB = onSnapshot(collection(db, "knowledgeBase"), (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as KnowledgeBaseItem[];
-            setKnowledgeBase(items.length > 0 ? items : DEFAULT_KNOWLEDGE_BASE);
         });
 
         return () => {
             unsubscribeAuth();
             unsubscribeMarket();
             unsubscribeCoaches();
-            unsubscribeKB();
         };
     }, []);
 
     useEffect(() => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) {
-            setUsers([]);
-            return;
-        }
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-            setUsers(items);
-        }, (error) => {
-            if (error.code !== 'permission-denied') console.error("Admin Users Listener Error:", error);
+            setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[]);
         });
         return () => unsubscribeUsers();
     }, [currentUser]);
 
     const login = async (phone: string, password?: string) => {
-        setIsActionLoading(true); // Don't trigger main isLoading to avoid Splash flicker
+        setIsActionLoading(true);
         try {
             const trimmedPhone = phone.trim();
             const email = `${trimmedPhone}@ny11.com`;
             const pass = password || "default123";
+            
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             
-            const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-            if (userDoc.exists()) {
-                let userData = userDoc.data() as User;
-                if (ADMIN_PHONES.includes(trimmedPhone) && userData.role !== UserRole.ADMIN) {
-                    await updateDoc(doc(db, "users", userCredential.user.uid), { role: UserRole.ADMIN });
-                    userData.role = UserRole.ADMIN;
-                }
-                setCurrentUser(userData);
-            } else if (ADMIN_PHONES.includes(trimmedPhone)) {
-                const adminData = await createAdminDoc(userCredential.user.uid, trimmedPhone);
+            if (ADMIN_PHONES.includes(trimmedPhone)) {
+                const adminData = await syncAdminData(userCredential.user.uid, trimmedPhone);
                 setCurrentUser(adminData);
+            } else {
+                const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+                if (userDoc.exists()) {
+                    setCurrentUser(userDoc.data() as User);
+                }
             }
             
-            showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Logged in successfully", "success");
+            showToast(language === Language.AR ? "مرحباً بك مجدداً" : "Welcome back", "success");
             return true;
         } catch (error: any) {
-            let msg = language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials";
-            if (error.code === 'auth/user-not-found') msg = language === Language.AR ? "المستخدم غير موجود، يرجى التسجيل" : "User not found. Please register.";
-            showToast(msg, "error");
+            console.error("Login Error:", error);
+            showToast(language === Language.AR ? "رقم الهاتف أو كلمة المرور غير صحيحة" : "Invalid login credentials", "error");
             return false;
         } finally {
             setIsActionLoading(false);
@@ -229,22 +209,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const trimmedPhone = userData.phone.trim();
             const email = `${trimmedPhone}@ny11.com`;
-            const password = customPassword || "default123";
+            const pass = customPassword || "default123";
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
             
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const isAdmin = ADMIN_PHONES.includes(trimmedPhone);
-            
             const newUser: User = { 
                 ...userData, 
-                phone: trimmedPhone,
-                id: userCredential.user.uid,
-                email: email,
-                role: isAdmin ? UserRole.ADMIN : UserRole.USER,
+                id: userCredential.user.uid, 
+                email, 
+                role: isAdmin ? UserRole.ADMIN : UserRole.USER 
             };
-
+            
             await setDoc(doc(db, "users", newUser.id), newUser);
             setCurrentUser(newUser);
-            showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created successfully", "success");
+            showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created", "success");
         } catch (error: any) {
             showToast(error.message, "error");
         } finally {
@@ -261,7 +239,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
     };
 
-    // ... rest of the helper functions
     const registerCoach = async (data: CoachOnboardingData) => {
         try {
             const email = data.email || `${data.phone}@ny11.com`;
@@ -273,6 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showToast(`Coach ${data.name} registered.`, 'success');
         } catch (error: any) { showToast(error.message, 'error'); }
     };
+
     const updateCoach = async (id: string, data: CoachOnboardingData) => {
         try {
             await updateDoc(doc(db, "coaches", id), { name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar });
@@ -280,6 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showToast(`Coach updated.`, 'success');
         } catch (error: any) { showToast(error.message, 'error'); }
     };
+
     const addToCart = (itemId: string) => {
         const itemToAdd = cart.find(i => i.id === itemId);
         if (itemToAdd) setCart(cart.map(item => item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item));
@@ -296,10 +275,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const getAIResponse = async (userQuestion: string): Promise<string> => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const knowledgeContext = knowledgeBase.map(kb => `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`).join('\n---\n');
-            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach. NY11 KNOWLEDGE: ${knowledgeContext}. Prioritize this data. Match user language (AR/EN).`;
-            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: userQuestion, config: { systemInstruction, temperature: 0.7 } });
-            return response.text || (language === Language.AR ? "عذراً، لم أستطع الرد حالياً." : "Sorry, I can't answer right now.");
+            const knowledgeContext = knowledgeBase.map(kb => `Question: ${kb.question}\nAnswer: ${kb.answer}`).join('\n');
+            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach. Knowledge: ${knowledgeContext}`;
+            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: userQuestion, config: { systemInstruction } });
+            return response.text || "Sorry, I can't answer that right now.";
         } catch (error) { return "Connection error."; }
     };
 
@@ -323,16 +302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updateQuoteStatus = (messageId: string, status: QuoteStatus, conversation: Message[], setConversation: React.Dispatch<React.SetStateAction<Message[]>>) => {
         const updatedConversation = conversation.map(msg => (msg.id === messageId && msg.quote) ? { ...msg, quote: { ...msg.quote, status } } : msg);
-        setConversation([...updatedConversation, { id: `sys-${Date.now()}`, sender: MessageSender.SYSTEM, text: `Quote ${status}.`, timestamp: new Date().toISOString() }]);
-        if (status === QuoteStatus.ACCEPTED) {
-            setTimeout(() => {
-                const newPlanData = GOAL_PLANS[Goal.MUSCLE_BUILD];
-                const newPlan: Plan = { [format(new Date(), 'yyyy-MM-dd')]: newPlanData };
-                setConversation(prev => [...prev, { id: `plan-${Date.now()}`, sender: MessageSender.COACH, text: 'Plan updated!', plan: newPlan, timestamp: new Date().toISOString() }]);
-                updatePlan(newPlan);
-                showNotification({ title: translations[language].planUpdatedTitle, body: translations[language].planUpdatedBody });
-            }, 2000);
-        }
+        setConversation(updatedConversation);
     };
 
     return (
