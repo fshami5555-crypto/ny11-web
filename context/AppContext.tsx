@@ -49,7 +49,7 @@ interface AppContextType {
     login: (phone: string, password?: string) => Promise<boolean>;
     loginAsGuest: () => void;
     logout: () => void;
-    register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => Promise<void>;
+    register: (user: Omit<User, 'id' | 'role' | 'avatar' | 'email'>, password?: string) => Promise<void>;
     registerCoach: (data: CoachOnboardingData) => Promise<void>;
     updateCoach: (id: string, data: CoachOnboardingData) => Promise<void>;
     setLanguage: (lang: Language) => void;
@@ -104,7 +104,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => {
             setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
-        }, 3000);
+        }, 4000);
     }, []);
 
     useEffect(() => {
@@ -174,6 +174,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const login = async (phone: string, password?: string) => {
         try {
             const email = `${phone}@ny11.com`;
+            // USE PROVIDED PASSWORD or fallback to default for legacy compatibility
             const pass = password || "default123";
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
@@ -189,8 +190,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             
             if (error.code === 'auth/invalid-credential') {
                 errorMsg = language === Language.AR 
-                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من تفعيل خيار البريد وكلمة السر في إعدادات Firebase." 
-                    : "Invalid credentials. Please ensure Email/Password provider is enabled in Firebase Console.";
+                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من التسجيل أولاً بنفس البيانات." 
+                    : "Invalid credentials. Please ensure you are registered with these details.";
             } else if (error.code === 'auth/user-not-found') {
                 errorMsg = language === Language.AR ? "المستخدم غير موجود" : "User not found";
             } else if (error.code === 'auth/wrong-password') {
@@ -212,13 +213,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentUser(null);
     };
 
-    const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => {
+    const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>, customPassword?: string) => {
         try {
             const email = `${userData.phone}@ny11.com`;
-            const password = "default123";
+            const password = customPassword || "default123";
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
-            const isAdmin = userData.phone === '000000000' || userData.phone === '00000000';
+            // ADMIN WHITELIST
+            const adminPhones = ['000000000', '00000000', '0597288408'];
+            const isAdmin = adminPhones.includes(userData.phone);
+            
             const newUser: User = { 
                 ...userData, 
                 id: userCredential.user.uid,

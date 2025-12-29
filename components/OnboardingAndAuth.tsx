@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ONBOARDING_BACKGROUNDS } from '../constants';
@@ -23,7 +24,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
     } = useAppContext();
     const [step, setStep] = useState<OnboardingStep>('language');
     const [regStep, setRegStep] = useState(1);
-    // Removed email from form state
+    
     const [userFormData, setUserFormData] = useState({
         name: '', phone: '', password: '', age: '', weight: '', height: '', goal: '' as Goal | ''
     });
@@ -46,9 +47,9 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
     };
 
     const handleUserRegister = () => {
-        const { name, phone, age, weight, height, goal } = userFormData;
-        if (!name || !phone || !age || !weight || !height || !goal) {
-             showToast('Please fill all fields', 'error');
+        const { name, phone, age, weight, height, goal, password } = userFormData;
+        if (!name || !phone || !age || !weight || !height || !goal || !password) {
+             showToast(language === Language.AR ? 'يرجى ملء جميع الحقول وكلمة المرور' : 'Please fill all fields and password', 'error');
             return;
         }
         register({ 
@@ -58,18 +59,15 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
             weight: parseFloat(weight),
             height: parseFloat(height),
             goal,
-        });
+        }, password);
     };
 
     const handleLogin = () => {
         if (!userFormData.phone || !userFormData.password) {
-            showToast('Please enter phone and password', 'error');
+            showToast(language === Language.AR ? 'يرجى إدخال رقم الهاتف وكلمة المرور' : 'Please enter phone and password', 'error');
             return;
         }
-        const success = login(userFormData.phone, userFormData.password);
-        if (!success) {
-            showToast('Invalid phone or password', 'error');
-        }
+        login(userFormData.phone, userFormData.password);
     }
 
     const goals: { key: Goal, label: keyof typeof t }[] = [
@@ -85,18 +83,18 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
     };
 
     const renderRegistration = () => {
-        // Reduced steps (removed email step)
-        const totalRegSteps = 6;
+        const totalRegSteps = 7; // Increased for password
         const progress = (regStep / totalRegSteps) * 100;
 
         const isStepValid = () => {
             switch (regStep) {
-                case 1: return userFormData.phone.length > 5; // Phone is now step 1
-                case 2: return userFormData.name.trim().length > 2;
-                case 3: return !!userFormData.age && parseInt(userFormData.age, 10) > 10;
-                case 4: return !!userFormData.height && parseInt(userFormData.height, 10) > 50;
-                case 5: return !!userFormData.weight && parseInt(userFormData.weight, 10) > 20;
-                case 6: return !!userFormData.goal;
+                case 1: return userFormData.phone.length > 5;
+                case 2: return userFormData.password.length >= 6; // Password Validation
+                case 3: return userFormData.name.trim().length > 2;
+                case 4: return !!userFormData.age && parseInt(userFormData.age, 10) > 10;
+                case 5: return !!userFormData.height && parseInt(userFormData.height, 10) > 50;
+                case 6: return !!userFormData.weight && parseInt(userFormData.weight, 10) > 20;
+                case 7: return !!userFormData.goal;
                 default: return false;
             }
         };
@@ -118,6 +116,14 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                         </div>
                     );
                 case 2:
+                    return (
+                        <div className="animate-slide-up">
+                            <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.password}</h3>
+                            <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">Min 6 characters</p>
+                            <input type="password" name="password" value={userFormData.password} onChange={handleInputChange} placeholder={t.passwordPlaceholder} className="w-full p-3 text-center text-lg rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green" autoFocus />
+                        </div>
+                    );
+                case 3:
                      return (
                         <div className="animate-slide-up">
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.whatsYourName}</h3>
@@ -125,7 +131,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                             <input type="text" name="name" value={userFormData.name} onChange={handleInputChange} placeholder={t.namePlaceholder} className="w-full p-3 text-center text-lg rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green" autoFocus />
                         </div>
                     );
-                case 3:
+                case 4:
                      return (
                         <div className="animate-slide-up">
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.whatsYourAge}</h3>
@@ -133,7 +139,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                             <input type="number" name="age" value={userFormData.age} onChange={handleInputChange} placeholder={t.agePlaceholder} className="w-full p-3 text-center text-lg rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green" autoFocus />
                         </div>
                     );
-                case 4:
+                case 5:
                      return (
                         <div className="animate-slide-up">
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.whatsYourHeight}</h3>
@@ -141,7 +147,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                             <input type="number" name="height" value={userFormData.height} onChange={handleInputChange} placeholder={t.heightPlaceholder} className="w-full p-3 text-center text-lg rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green" autoFocus />
                         </div>
                     );
-                case 5:
+                case 6:
                      return (
                         <div className="animate-slide-up">
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.whatsYourWeight}</h3>
@@ -149,7 +155,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                             <input type="number" name="weight" value={userFormData.weight} onChange={handleInputChange} placeholder={t.weightPlaceholder} className="w-full p-3 text-center text-lg rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-green" autoFocus />
                         </div>
                     );
-                case 6:
+                case 7:
                      return (
                         <div className="animate-slide-up">
                             <h3 className="text-xl font-bold text-center mb-2 dark:text-white">{t.yourGoal}</h3>
@@ -222,9 +228,8 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                 return (
                     <div className="animate-fade-in w-full text-center">
                         <h2 className="text-2xl font-bold mb-4">{t.loginToYourAccount}</h2>
-                        {/* Switched from email to phone input */}
-                        <input type="tel" name="phone" value={userFormData.phone} onChange={handleInputChange} placeholder={t.phonePlaceholder} className="w-full p-3 mb-3 rounded-lg border dark:bg-dark-card dark:border-gray-600" />
-                        <input type="password" name="password" value={userFormData.password} onChange={handleInputChange} placeholder={t.passwordPlaceholder} className="w-full p-3 rounded-lg border dark:bg-dark-card dark:border-gray-600" />
+                        <input type="tel" name="phone" value={userFormData.phone} onChange={handleInputChange} placeholder={t.phonePlaceholder} className="w-full p-3 mb-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
+                        <input type="password" name="password" value={userFormData.password} onChange={handleInputChange} placeholder={t.passwordPlaceholder} className="w-full p-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
                         
                         <div className="flex gap-4 mt-4">
                             <button 
