@@ -99,7 +99,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Sync from Firestore on Mount
     useEffect(() => {
         // 1. Sync Authentication
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
@@ -108,8 +107,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (userDoc.exists()) {
                     const userData = userDoc.data() as User;
                     setCurrentUser(userData);
-                    
-                    // Fetch plan if user has goals
                     if (userData.goal) {
                         const today = format(new Date(), 'yyyy-MM-dd');
                         const userPlan = GOAL_PLANS[userData.goal] || GOAL_PLANS[Goal.MAINTENANCE];
@@ -122,7 +119,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         });
 
-        // 2. Sync Collections
+        // 2. Sync Collections (Publicly Readable)
         const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
             setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
@@ -138,19 +135,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setKnowledgeBase(items.length > 0 ? items : DEFAULT_KNOWLEDGE_BASE);
         });
 
-        const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-            setUsers(items);
-        });
-
         return () => {
             unsubscribeAuth();
             unsubscribeMarket();
             unsubscribeCoaches();
             unsubscribeKB();
-            unsubscribeUsers();
         };
     }, []);
+
+    // 3. Admin-only Listeners
+    useEffect(() => {
+        if (currentUser?.role !== UserRole.ADMIN) {
+            setUsers([]);
+            return;
+        }
+
+        const unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+            setUsers(items);
+        }, (error) => {
+            console.error("Admin Users Listener Error:", error);
+        });
+
+        return () => unsubscribeUsers();
+    }, [currentUser]);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -163,32 +171,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const login = async (phone: string, password?: string) => {
         try {
             const email = `${phone}@ny11.com`;
-            // If phone is admin phone and local password is correct, bypass email login if needed 
-            // but standard is to use Firebase.
             const userCredential = await signInWithEmailAndPassword(auth, email, password || "default123");
             const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
             if (userDoc.exists()) {
                 setCurrentUser(userDoc.data() as User);
-                showToast("Logged in successfully", "success");
+                showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Logged in successfully", "success");
                 return true;
             }
             return false;
         } catch (error: any) {
             console.error("Login error:", error);
-            showToast(error.message, "error");
+            let errorMsg = language === Language.AR ? "خطأ في بيانات الدخول" : "Invalid credential";
+            if (error.code === 'auth/user-not-found') {
+                errorMsg = language === Language.AR ? "المستخدم غير موجود" : "User not found";
+            } else if (error.code === 'auth/wrong-password') {
+                errorMsg = language === Language.AR ? "كلمة المرور خاطئة" : "Wrong password";
+            }
+            showToast(errorMsg, "error");
             return false;
         }
     };
 
     const loginAsGuest = () => {
-        const guestUser: User = {
-            id: 'guest',
-            name: translations[language].guest,
-            email: '',
-            phone: '',
-            role: UserRole.USER,
-        };
-        setCurrentUser(guestUser);
+        setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
         setPlan({});
     };
 
@@ -200,21 +205,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>) => {
         try {
             const email = `${userData.phone}@ny11.com`;
-            const password = "default123"; // Simplification for phone-based login
+            const password = "default123";
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
             const newUser: User = { 
                 ...userData, 
                 id: userCredential.user.uid,
                 email: email,
-                role: userData.phone === '000000000' ? UserRole.ADMIN : UserRole.USER,
+                role: (userData.phone === '000000000' || userData.phone === '00000000') ? UserRole.ADMIN : UserRole.USER,
             };
 
             await setDoc(doc(db, "users", newUser.id), newUser);
             setCurrentUser(newUser);
             showToast("Registration successful", "success");
         } catch (error: any) {
-            console.error("Registration error:", error);
             showToast(error.message, "error");
         }
     };
@@ -223,155 +227,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const email = data.email || `${data.phone}@ny11.com`;
             const userCredential = await createUserWithEmailAndPassword(auth, email, data.password || "coach123");
-            
-            const newUser: User = {
-                id: userCredential.user.uid,
-                name: data.name,
-                email: email,
-                phone: data.phone,
-                role: UserRole.COACH,
-                avatar: data.avatar,
-            };
-
-            const newCoach: Coach = {
-                id: userCredential.user.uid,
-                name: data.name,
-                specialty: data.specialty,
-                bio: data.bio,
-                experienceYears: parseInt(data.experienceYears, 10) || 0,
-                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
-                avatar: data.avatar,
-            };
-
+            const newUser: User = { id: userCredential.user.uid, name: data.name, email, phone: data.phone, role: UserRole.COACH, avatar: data.avatar };
+            const newCoach: Coach = { id: userCredential.user.uid, name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar };
             await setDoc(doc(db, "users", newUser.id), newUser);
             await setDoc(doc(db, "coaches", newCoach.id), newCoach);
             showToast(`Coach ${data.name} registered.`, 'success');
-        } catch (error: any) {
-            showToast(error.message, 'error');
-        }
+        } catch (error: any) { showToast(error.message, 'error'); }
     };
 
     const updateCoach = async (id: string, data: CoachOnboardingData) => {
         try {
-            await updateDoc(doc(db, "coaches", id), {
-                name: data.name,
-                specialty: data.specialty,
-                bio: data.bio,
-                experienceYears: parseInt(data.experienceYears, 10) || 0,
-                clientsHelped: parseInt(data.clientsHelped, 10) || 0,
-                avatar: data.avatar,
-            });
-            await updateDoc(doc(db, "users", id), {
-                name: data.name,
-                phone: data.phone,
-                avatar: data.avatar
-            });
+            await updateDoc(doc(db, "coaches", id), { name: data.name, specialty: data.specialty, bio: data.bio, experienceYears: parseInt(data.experienceYears, 10) || 0, clientsHelped: parseInt(data.clientsHelped, 10) || 0, avatar: data.avatar });
+            await updateDoc(doc(db, "users", id), { name: data.name, phone: data.phone, avatar: data.avatar });
             showToast(`Coach updated.`, 'success');
-        } catch (error: any) {
-            showToast(error.message, 'error');
-        }
+        } catch (error: any) { showToast(error.message, 'error'); }
     };
 
     const addToCart = (itemId: string) => {
         const itemToAdd = cart.find(i => i.id === itemId);
-        if (itemToAdd) {
-            setCart(cart.map(item => item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item));
-        } else {
-             const newItem = marketItems.find((i) => i.id === itemId);
-             if(newItem) setCart([...cart, { ...newItem, quantity: 1 }]);
-        }
+        if (itemToAdd) setCart(cart.map(item => item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item));
+        else { const newItem = marketItems.find((i) => i.id === itemId); if(newItem) setCart([...cart, { ...newItem, quantity: 1 }]); }
     };
     
-    const removeFromCart = (itemId: string) => {
-        setCart(cart.filter(item => item.id !== itemId));
-    };
-    
-    const addMarketItem = async (itemData: Omit<MarketItem, 'id'>) => {
-        await addDoc(collection(db, "marketItems"), itemData);
-        showToast('Item added to market.', 'success');
-    };
-
-    const updateMarketItem = async (updatedItem: MarketItem) => {
-        const { id, ...data } = updatedItem;
-        await updateDoc(doc(db, "marketItems", id), data);
-        showToast('Item updated.', 'success');
-    };
-
-    const deleteMarketItem = async (itemId: string) => {
-        await deleteDoc(doc(db, "marketItems", itemId));
-        showToast('Item deleted.', 'success');
-    };
-
-    const addKnowledgeItem = async (item: Omit<KnowledgeBaseItem, 'id'>) => {
-        await addDoc(collection(db, "knowledgeBase"), item);
-        showToast('Q&A added.', 'success');
-    };
-
-    const updateKnowledgeItem = async (updatedItem: KnowledgeBaseItem) => {
-        const { id, ...data } = updatedItem;
-        await updateDoc(doc(db, "knowledgeBase", id), data);
-        showToast('Q&A updated.', 'success');
-    };
-
-    const deleteKnowledgeItem = async (id: string) => {
-        await deleteDoc(doc(db, "knowledgeBase", id));
-        showToast('Q&A deleted.', 'success');
-    };
+    const removeFromCart = (itemId: string) => setCart(cart.filter(item => item.id !== itemId));
+    const addMarketItem = async (itemData: Omit<MarketItem, 'id'>) => { await addDoc(collection(db, "marketItems"), itemData); showToast('Item added.', 'success'); };
+    const updateMarketItem = async (updatedItem: MarketItem) => { const { id, ...data } = updatedItem; await updateDoc(doc(db, "marketItems", id), data); showToast('Item updated.', 'success'); };
+    const deleteMarketItem = async (itemId: string) => { await deleteDoc(doc(db, "marketItems", itemId)); showToast('Item deleted.', 'success'); };
+    const addKnowledgeItem = async (item: Omit<KnowledgeBaseItem, 'id'>) => { await addDoc(collection(db, "knowledgeBase"), item); showToast('Q&A added.', 'success'); };
+    const updateKnowledgeItem = async (updatedItem: KnowledgeBaseItem) => { const { id, ...data } = updatedItem; await updateDoc(doc(db, "knowledgeBase", id), data); showToast('Q&A updated.', 'success'); };
+    const deleteKnowledgeItem = async (id: string) => { await deleteDoc(doc(db, "knowledgeBase", id)); showToast('Q&A deleted.', 'success'); };
 
     const getAIResponse = async (userQuestion: string): Promise<string> => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const knowledgeContext = knowledgeBase.map(kb => 
-                `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`
-            ).join('\n---\n');
-
-            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach.
-            KNOWLEDGE SOURCES:
-            1. INTERNAL NY11 KNOWLEDGE (CRITICAL): ${knowledgeContext}
-            2. GENERAL HEALTH KNOWLEDGE: Use your expert background.
-            GUIDELINES:
-            - Prioritize internal data for NY11-specific queries.
-            - Match the user's language (AR/EN).
-            - Professional and motivating tone.`;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: userQuestion,
-                config: { systemInstruction: systemInstruction, temperature: 0.7 }
-            });
-
+            const knowledgeContext = knowledgeBase.map(kb => `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`).join('\n---\n');
+            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach. NY11 KNOWLEDGE: ${knowledgeContext}. Prioritize this data. Support both Arabic and English.`;
+            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: userQuestion, config: { systemInstruction, temperature: 0.7 } });
             return response.text || "Sorry, try again.";
-        } catch (error) {
-            return "Connection error.";
-        }
-    };
-
-    const setLanguageAndSave = (lang: Language) => {
-        setLanguage(lang);
+        } catch (error) { return "Connection error."; }
     };
 
     const clearCart = () => setCart([]);
-    const showNotification = useCallback((notification: Omit<Notification, 'id'>) => {
-        const id = Date.now();
-        setNotifications(prev => [...prev, { id, ...notification }]);
-        setTimeout(() => dismissNotification(id), 5000);
-    }, []);
+    const showNotification = useCallback((notification: Omit<Notification, 'id'>) => { const id = Date.now(); setNotifications(prev => [...prev, { id, ...notification }]); setTimeout(() => dismissNotification(id), 5000); }, []);
     const dismissNotification = (id: number) => setNotifications(current => current.filter(notif => notif.id !== id));
     const updatePlan = (newPlan: Plan) => setPlan(prevPlan => ({...prevPlan, ...newPlan}));
     const updateDailyPlan = (date: string, dailyPlan: DailyPlan) => setPlan(prevPlan => ({...prevPlan, [date]: dailyPlan}));
 
     const updateUserProfile = async (profileData: Partial<Omit<User, 'id' | 'role' | 'email'>>) => {
         if (!currentUser) return;
-        try {
-            await updateDoc(doc(db, "users", currentUser.id), profileData);
-            setCurrentUser({ ...currentUser, ...profileData });
-            showToast("Profile updated", "success");
-        } catch (error: any) {
-            showToast(error.message, "error");
-        }
+        try { await updateDoc(doc(db, "users", currentUser.id), profileData); setCurrentUser({ ...currentUser, ...profileData }); showToast("Profile updated", "success"); }
+        catch (error: any) { showToast(error.message, "error"); }
     };
 
-    // Placeholder for non-DB states
     const addBannerImage = (url: string) => setBannerImages(prev => [...prev, url]);
     const deleteBannerImage = (index: number) => setBannerImages(prev => prev.filter((_, i) => i !== index));
     const updateBannerImage = (index: number, url: string) => setBannerImages(prev => prev.map((img, i) => (i === index ? url : img)));
@@ -379,19 +286,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateSiteConfig = (newConfig: Partial<SiteConfig>) => setSiteConfig(prev => ({...prev, ...newConfig}));
 
     const updateQuoteStatus = (messageId: string, status: QuoteStatus, conversation: Message[], setConversation: React.Dispatch<React.SetStateAction<Message[]>>) => {
-        const updatedConversation = conversation.map(msg => {
-            if (msg.id === messageId && msg.quote) {
-                return { ...msg, quote: { ...msg.quote, status } };
-            }
-            return msg;
-        });
-        const statusMessage: Message = { id: `sys-${Date.now()}`, sender: MessageSender.SYSTEM, text: `You have ${status} the quote.`, timestamp: new Date().toISOString() };
-        setConversation([...updatedConversation, statusMessage]);
+        const updatedConversation = conversation.map(msg => (msg.id === messageId && msg.quote) ? { ...msg, quote: { ...msg.quote, status } } : msg);
+        setConversation([...updatedConversation, { id: `sys-${Date.now()}`, sender: MessageSender.SYSTEM, text: `Quote ${status}.`, timestamp: new Date().toISOString() }]);
         if (status === QuoteStatus.ACCEPTED) {
             setTimeout(() => {
                 const newPlanData = GOAL_PLANS[Goal.MUSCLE_BUILD];
                 const newPlan: Plan = { [format(new Date(), 'yyyy-MM-dd')]: newPlanData };
-                setConversation(prev => [...prev, { id: `plan-${Date.now()}`, sender: MessageSender.COACH, text: 'Plan accepted!', plan: newPlan, timestamp: new Date().toISOString() }]);
+                setConversation(prev => [...prev, { id: `plan-${Date.now()}`, sender: MessageSender.COACH, text: 'Plan updated!', plan: newPlan, timestamp: new Date().toISOString() }]);
                 updatePlan(newPlan);
                 showNotification({ title: translations[language].planUpdatedTitle, body: translations[language].planUpdatedBody });
             }, 2000);
