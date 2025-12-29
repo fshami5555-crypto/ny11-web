@@ -20,7 +20,7 @@ import {
 } from 'firebase/auth';
 import { 
   doc, setDoc, getDoc, collection, onSnapshot, 
-  query, addDoc, updateDoc, deleteDoc, getDocs 
+  addDoc, updateDoc, deleteDoc 
 } from 'firebase/firestore';
 
 interface Toast {
@@ -99,19 +99,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
+        }, 3000);
+    }, []);
+
     useEffect(() => {
-        // 1. Sync Authentication
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
             if (fbUser) {
-                const userDoc = await getDoc(doc(db, "users", fbUser.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data() as User;
-                    setCurrentUser(userData);
-                    if (userData.goal) {
-                        const today = format(new Date(), 'yyyy-MM-dd');
-                        const userPlan = GOAL_PLANS[userData.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-                        setPlan({ [today]: userPlan });
+                try {
+                    const userDoc = await getDoc(doc(db, "users", fbUser.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data() as User;
+                        setCurrentUser(userData);
+                        if (userData.goal) {
+                            const today = format(new Date(), 'yyyy-MM-dd');
+                            const userPlan = GOAL_PLANS[userData.goal] || GOAL_PLANS[Goal.MAINTENANCE];
+                            setPlan({ [today]: userPlan });
+                        }
                     }
+                } catch (e) {
+                    console.error("Auth User Sync Error:", e);
                 }
             } else {
                 setCurrentUser(null);
@@ -119,7 +130,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         });
 
-        // 2. Sync Collections (Publicly Readable)
         const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
             setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
@@ -143,9 +153,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
     }, []);
 
-    // 3. Admin-only Listeners
     useEffect(() => {
-        if (currentUser?.role !== UserRole.ADMIN) {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) {
             setUsers([]);
             return;
         }
@@ -154,24 +163,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
             setUsers(items);
         }, (error) => {
-            console.error("Admin Users Listener Error:", error);
+            if (error.code !== 'permission-denied') {
+                console.error("Admin Users Listener Error:", error);
+            }
         });
 
         return () => unsubscribeUsers();
     }, [currentUser]);
 
-    const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
-            setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
-        }, 3000);
-    }, []);
-
     const login = async (phone: string, password?: string) => {
         try {
             const email = `${phone}@ny11.com`;
-            const userCredential = await signInWithEmailAndPassword(auth, email, password || "default123");
+            const pass = password || "default123";
+            const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
             if (userDoc.exists()) {
                 setCurrentUser(userDoc.data() as User);
@@ -180,13 +184,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
             return false;
         } catch (error: any) {
-            console.error("Login error:", error);
-            let errorMsg = language === Language.AR ? "خطأ في بيانات الدخول" : "Invalid credential";
-            if (error.code === 'auth/user-not-found') {
+            console.error("Login detail error:", error);
+            let errorMsg = language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials";
+            
+            if (error.code === 'auth/invalid-credential') {
+                errorMsg = language === Language.AR 
+                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من تفعيل خيار البريد وكلمة السر في إعدادات Firebase." 
+                    : "Invalid credentials. Please ensure Email/Password provider is enabled in Firebase Console.";
+            } else if (error.code === 'auth/user-not-found') {
                 errorMsg = language === Language.AR ? "المستخدم غير موجود" : "User not found";
             } else if (error.code === 'auth/wrong-password') {
                 errorMsg = language === Language.AR ? "كلمة المرور خاطئة" : "Wrong password";
             }
+            
             showToast(errorMsg, "error");
             return false;
         }
@@ -208,16 +218,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const password = "default123";
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
+            const isAdmin = userData.phone === '000000000' || userData.phone === '00000000';
             const newUser: User = { 
                 ...userData, 
                 id: userCredential.user.uid,
                 email: email,
-                role: (userData.phone === '000000000' || userData.phone === '00000000') ? UserRole.ADMIN : UserRole.USER,
+                role: isAdmin ? UserRole.ADMIN : UserRole.USER,
             };
 
             await setDoc(doc(db, "users", newUser.id), newUser);
             setCurrentUser(newUser);
-            showToast("Registration successful", "success");
+            showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Registration successful", "success");
         } catch (error: any) {
             showToast(error.message, "error");
         }
@@ -261,9 +272,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const knowledgeContext = knowledgeBase.map(kb => `Question: ${kb.question}\nAnswer: ${kb.answer}\nKeywords: ${kb.keywords.join(', ')}`).join('\n---\n');
-            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach. NY11 KNOWLEDGE: ${knowledgeContext}. Prioritize this data. Support both Arabic and English.`;
+            const systemInstruction = `You are the NY11 AI Health & Nutrition Coach. NY11 KNOWLEDGE: ${knowledgeContext}. Prioritize this data. Match user language (AR/EN).`;
             const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: userQuestion, config: { systemInstruction, temperature: 0.7 } });
-            return response.text || "Sorry, try again.";
+            return response.text || (language === Language.AR ? "عذراً، لم أستطع الرد حالياً." : "Sorry, I can't answer right now.");
         } catch (error) { return "Connection error."; }
     };
 
