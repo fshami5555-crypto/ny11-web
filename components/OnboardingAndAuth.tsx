@@ -20,7 +20,8 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
         loginAsGuest, 
         isLanguageSelected, 
         setIsLanguageSelected,
-        translations
+        translations,
+        isActionLoading
     } = useAppContext();
     const [step, setStep] = useState<OnboardingStep>('language');
     const [regStep, setRegStep] = useState(1);
@@ -62,12 +63,12 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
         }, password);
     };
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!userFormData.phone || !userFormData.password) {
             showToast(language === Language.AR ? 'يرجى إدخال رقم الهاتف وكلمة المرور' : 'Please enter phone and password', 'error');
             return;
         }
-        login(userFormData.phone, userFormData.password);
+        await login(userFormData.phone, userFormData.password);
     }
 
     const goals: { key: Goal, label: keyof typeof t }[] = [
@@ -83,13 +84,14 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
     };
 
     const renderRegistration = () => {
-        const totalRegSteps = 7; // Increased for password
+        const totalRegSteps = 7;
         const progress = (regStep / totalRegSteps) * 100;
 
         const isStepValid = () => {
+            if (isActionLoading) return false;
             switch (regStep) {
                 case 1: return userFormData.phone.length > 5;
-                case 2: return userFormData.password.length >= 6; // Password Validation
+                case 2: return userFormData.password.length >= 6;
                 case 3: return userFormData.name.trim().length > 2;
                 case 4: return !!userFormData.age && parseInt(userFormData.age, 10) > 10;
                 case 5: return !!userFormData.height && parseInt(userFormData.height, 10) > 50;
@@ -196,6 +198,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                 </div>
                 <div className="mt-6 flex gap-4">
                     <button 
+                        disabled={isActionLoading}
                         onClick={() => regStep > 1 ? setRegStep(s => s - 1) : setStep('login')}
                         className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
                     >
@@ -205,7 +208,9 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                     {regStep < totalRegSteps ? (
                         <button onClick={nextRegStep} disabled={!isStepValid()} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">{t.next}</button>
                     ) : (
-                        <button onClick={handleUserRegister} disabled={!isStepValid()} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">{t.completeRegistration}</button>
+                        <button onClick={handleUserRegister} disabled={!isStepValid()} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isActionLoading ? '...' : t.completeRegistration}
+                        </button>
                     )}
                 </div>
             </div>
@@ -233,12 +238,19 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                         
                         <div className="flex gap-4 mt-4">
                             <button 
+                                disabled={isActionLoading}
                                 onClick={() => loginAsGuest()}
                                 className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
                             >
                                 {t.back}
                             </button>
-                            <button onClick={handleLogin} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition">{t.login}</button>
+                            <button 
+                                onClick={handleLogin} 
+                                disabled={isActionLoading}
+                                className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50"
+                            >
+                                {isActionLoading ? '...' : t.login}
+                            </button>
                         </div>
                         
                         <div className="my-4 text-gray-500">{t.or}</div>

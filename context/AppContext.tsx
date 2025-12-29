@@ -46,6 +46,7 @@ interface AppContextType {
     translations: typeof TRANSLATIONS;
     knowledgeBase: KnowledgeBaseItem[];
     isLoading: boolean;
+    isActionLoading: boolean;
     login: (phone: string, password?: string) => Promise<boolean>;
     loginAsGuest: () => void;
     logout: () => void;
@@ -99,7 +100,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [translations, setTranslations] = useState(TRANSLATIONS);
     const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
     const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true); // Used for initial splash only
+    const [isActionLoading, setIsActionLoading] = useState(false); // Used for buttons
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -109,27 +111,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }, 4000);
     }, []);
 
+    const createAdminDoc = async (uid: string, phone: string) => {
+        const email = `${phone}@ny11.com`;
+        const adminUser: User = {
+            id: uid,
+            name: "Admin",
+            phone: phone,
+            email: email,
+            role: UserRole.ADMIN,
+        };
+        await setDoc(doc(db, "users", uid), adminUser);
+        return adminUser;
+    };
+
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
             if (fbUser) {
                 try {
                     const userDocRef = doc(db, "users", fbUser.uid);
                     const userDoc = await getDoc(userDocRef);
+                    
                     if (userDoc.exists()) {
                         let userData = userDoc.data() as User;
-                        
-                        // AUTO-UPGRADE TO ADMIN IF PHONE MATCHES
                         if (ADMIN_PHONES.includes(userData.phone) && userData.role !== UserRole.ADMIN) {
                             await updateDoc(userDocRef, { role: UserRole.ADMIN });
                             userData = { ...userData, role: UserRole.ADMIN };
-                            console.log("User auto-upgraded to Admin:", userData.phone);
                         }
-
                         setCurrentUser(userData);
-                        if (userData.goal) {
-                            const today = format(new Date(), 'yyyy-MM-dd');
-                            const userPlan = GOAL_PLANS[userData.goal] || GOAL_PLANS[Goal.MAINTENANCE];
-                            setPlan({ [today]: userPlan });
+                    } else {
+                        // If Auth exists but Doc doesn't, and it's an admin number, create it
+                        const phone = fbUser.email?.split('@')[0];
+                        if (phone && ADMIN_PHONES.includes(phone)) {
+                            const adminData = await createAdminDoc(fbUser.uid, phone);
+                            setCurrentUser(adminData);
                         }
                     }
                 } catch (e) {
@@ -141,7 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         });
 
-        // Listeners
+        // Other Listeners
         const unsubscribeMarket = onSnapshot(collection(db, "marketItems"), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as MarketItem[];
             setMarketItems(items.length > 0 ? items : MARKET_ITEMS);
@@ -178,14 +192,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [currentUser]);
 
     const login = async (phone: string, password?: string) => {
-        setIsLoading(true);
+        setIsActionLoading(true); // Don't trigger main isLoading to avoid Splash flicker
         try {
             const trimmedPhone = phone.trim();
             const email = `${trimmedPhone}@ny11.com`;
             const pass = password || "default123";
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-            const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
             
+            const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
             if (userDoc.exists()) {
                 let userData = userDoc.data() as User;
                 if (ADMIN_PHONES.includes(trimmedPhone) && userData.role !== UserRole.ADMIN) {
@@ -193,27 +207,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     userData.role = UserRole.ADMIN;
                 }
                 setCurrentUser(userData);
-                showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Logged in successfully", "success");
-                return true;
+            } else if (ADMIN_PHONES.includes(trimmedPhone)) {
+                const adminData = await createAdminDoc(userCredential.user.uid, trimmedPhone);
+                setCurrentUser(adminData);
             }
-            return false;
+            
+            showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Logged in successfully", "success");
+            return true;
         } catch (error: any) {
-            console.error("Login Error:", error.code, error.message);
-            let msg = language === Language.AR ? "خطأ في تسجيل الدخول" : "Login error";
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                msg = language === Language.AR 
-                    ? "رقم الهاتف أو كلمة المرور غير صحيحة. يرجى التأكد من إنشاء الحساب أولاً بنفس البيانات." 
-                    : "Invalid phone or password. Make sure you registered with these details.";
-            }
+            let msg = language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials";
+            if (error.code === 'auth/user-not-found') msg = language === Language.AR ? "المستخدم غير موجود، يرجى التسجيل" : "User not found. Please register.";
             showToast(msg, "error");
             return false;
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
     const register = async (userData: Omit<User, 'id' | 'role' | 'avatar' | 'email'>, customPassword?: string) => {
-        setIsLoading(true);
+        setIsActionLoading(true);
         try {
             const trimmedPhone = userData.phone.trim();
             const email = `${trimmedPhone}@ny11.com`;
@@ -234,16 +246,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setCurrentUser(newUser);
             showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created successfully", "success");
         } catch (error: any) {
-            console.error("Register Error:", error.code, error.message);
-            let msg = error.message;
-            if (error.code === 'auth/email-already-in-use') {
-                msg = language === Language.AR ? "رقم الهاتف مسجل مسبقاً، يرجى تسجيل الدخول" : "Phone number already registered. Please login.";
-            } else if (error.code === 'auth/weak-password') {
-                msg = language === Language.AR ? "كلمة المرور ضعيفة جداً" : "Password is too weak.";
-            }
-            showToast(msg, "error");
+            showToast(error.message, "error");
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
@@ -254,10 +259,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const loginAsGuest = () => {
         setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
-        setPlan({});
     };
 
-    // Helper functions for Admin/Context updates
+    // ... rest of the helper functions
     const registerCoach = async (data: CoachOnboardingData) => {
         try {
             const email = data.email || `${data.phone}@ny11.com`;
@@ -334,7 +338,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return (
         <AppContext.Provider value={{
             currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
-            isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading,
+            isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
             login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan, updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
