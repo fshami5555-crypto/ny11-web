@@ -38,7 +38,11 @@ const Admin: React.FC = () => {
     
     // Store State
     const [editingItem, setEditingItem] = useState<MarketItem | null>(null);
-    const [newItem, setNewItem] = useState<Omit<MarketItem, 'id'>>({ name: '', description: '', price: 0, image: '', category: 'meal' });
+    const [newItem, setNewItem] = useState<Omit<MarketItem, 'id'>>({ 
+        name: '', description: '', summary: '', price: 0, image: '', category: 'meal',
+        ingredients: '', caution: '',
+        nutrition: { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }
+    });
 
     // Text Management State
     const [heroTitleEn, setHeroTitleEn] = useState(translations.en.heroTitle);
@@ -62,7 +66,18 @@ const Admin: React.FC = () => {
 
     const handleItemInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setNewItem({ ...newItem, [name]: name === 'price' ? parseFloat(value) : value });
+        if (name.startsWith('nut-')) {
+            const nutField = name.replace('nut-', '');
+            setNewItem({
+                ...newItem,
+                nutrition: {
+                    ...(newItem.nutrition || { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }),
+                    [nutField]: value
+                }
+            });
+        } else {
+            setNewItem({ ...newItem, [name]: name === 'price' ? parseFloat(value) : value });
+        }
     };
 
     const handleSaveCoach = (e: React.FormEvent) => {
@@ -113,7 +128,11 @@ const Admin: React.FC = () => {
             return;
         }
         addMarketItem(newItem);
-        setNewItem({ name: '', description: '', price: 0, image: '', category: 'meal' });
+        setNewItem({ 
+            name: '', description: '', summary: '', price: 0, image: '', category: 'meal',
+            ingredients: '', caution: '',
+            nutrition: { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }
+        });
     };
     
     const handleUpdateItem = (e: React.FormEvent) => {
@@ -121,17 +140,28 @@ const Admin: React.FC = () => {
         if (!editingItem) return;
         updateMarketItem({ ...newItem, id: editingItem.id });
         setEditingItem(null);
-        setNewItem({ name: '', description: '', price: 0, image: '', category: 'meal' });
+        setNewItem({ 
+            name: '', description: '', summary: '', price: 0, image: '', category: 'meal',
+            ingredients: '', caution: '',
+            nutrition: { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }
+        });
     };
 
     const handleEditItemClick = (item: MarketItem) => {
         setEditingItem(item);
-        setNewItem(item);
+        setNewItem({
+            ...item,
+            nutrition: item.nutrition || { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }
+        });
     };
     
     const handleCancelEdit = () => {
         setEditingItem(null);
-        setNewItem({ name: '', description: '', price: 0, image: '', category: 'meal' });
+        setNewItem({ 
+            name: '', description: '', summary: '', price: 0, image: '', category: 'meal',
+            ingredients: '', caution: '',
+            nutrition: { servingSize: '', energy: '', protein: '', carbs: '', fat: '' }
+        });
     };
 
     const handleDeleteItem = (itemId: string) => {
@@ -358,9 +388,9 @@ const Admin: React.FC = () => {
             case 'store':
                  return (
                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-                        <div className="lg:col-span-2 bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
+                        <div className="lg:col-span-1 bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
                              <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{t.storeManagement}</h3>
-                             <div className="max-h-[500px] overflow-y-auto space-y-3">
+                             <div className="max-h-[800px] overflow-y-auto space-y-3">
                                 {marketItems.map(item => (
                                     <div key={item.id} className="flex items-center p-2 border rounded-lg dark:border-gray-700">
                                         <img src={item.image} alt={item.name} className="w-16 h-16 rounded-md object-cover mr-4" />
@@ -376,17 +406,40 @@ const Admin: React.FC = () => {
                                 ))}
                              </div>
                         </div>
-                        <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
+                        <div className="lg:col-span-2 bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg">
                              <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{editingItem ? t.edit : t.addNewItem}</h3>
-                             <form onSubmit={editingItem ? handleUpdateItem : handleAddItem} className="space-y-4">
-                                <input type="text" name="name" value={newItem.name} onChange={handleItemInputChange} placeholder={t.itemName} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                             <form onSubmit={editingItem ? handleUpdateItem : handleAddItem} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input type="text" name="name" value={newItem.name} onChange={handleItemInputChange} placeholder={t.itemName} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <input type="text" name="summary" value={newItem.summary} onChange={handleItemInputChange} placeholder="Description Bubble (e.g., HIGH PROTEIN)" className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <input type="number" step="0.01" name="price" value={newItem.price} onChange={handleItemInputChange} placeholder={t.price} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <input type="text" name="image" value={newItem.image} onChange={handleItemInputChange} placeholder={t.imageUrl} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                    <select name="category" value={newItem.category} onChange={handleItemInputChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                                        <option value="meal">{t.meal}</option>
+                                        <option value="drink">{t.drink}</option>
+                                        <option value="breakfast">Breakfast</option>
+                                        <option value="lunch">Lunch</option>
+                                        <option value="dinner">Dinner</option>
+                                        <option value="snack">Snack</option>
+                                    </select>
+                                </div>
+                                
                                 <textarea name="description" value={newItem.description} onChange={handleItemInputChange} placeholder={t.description} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                                <input type="number" step="0.01" name="price" value={newItem.price} onChange={handleItemInputChange} placeholder={t.price} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                                <input type="text" name="image" value={newItem.image} onChange={handleItemInputChange} placeholder={t.imageUrl} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-                                <select name="category" value={newItem.category} onChange={handleItemInputChange} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
-                                    <option value="meal">{t.meal}</option>
-                                    <option value="drink">{t.drink}</option>
-                                </select>
+                                <textarea name="ingredients" value={newItem.ingredients} onChange={handleItemInputChange} placeholder={t.ingredients} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+                                
+                                <div className="border-t pt-6">
+                                    <h4 className="font-bold mb-3">{t.nutritionFacts}</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                        <input type="text" name="nut-servingSize" value={newItem.nutrition?.servingSize} onChange={handleItemInputChange} placeholder={t.servingSize} className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-xs" />
+                                        <input type="text" name="nut-energy" value={newItem.nutrition?.energy} onChange={handleItemInputChange} placeholder={t.energy} className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-xs" />
+                                        <input type="text" name="nut-protein" value={newItem.nutrition?.protein} onChange={handleItemInputChange} placeholder={t.protein} className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-xs" />
+                                        <input type="text" name="nut-carbs" value={newItem.nutrition?.carbs} onChange={handleItemInputChange} placeholder={t.carbohydrates} className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-xs" />
+                                        <input type="text" name="nut-fat" value={newItem.nutrition?.fat} onChange={handleItemInputChange} placeholder={t.fat} className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-xs" />
+                                    </div>
+                                </div>
+
+                                <textarea name="caution" value={newItem.caution} onChange={handleItemInputChange} placeholder={t.caution} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
+
                                 <div className="flex flex-col space-y-2">
                                     <button type="submit" className="w-full bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition">{editingItem ? t.updateItem : t.addItem}</button>
                                     {editingItem && (

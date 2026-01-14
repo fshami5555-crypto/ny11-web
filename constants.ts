@@ -45,9 +45,26 @@ export const DEFAULT_KNOWLEDGE_BASE: KnowledgeBaseItem[] = [
 ];
 
 export const MARKET_ITEMS: MarketItem[] = [
+    { 
+      id: 'm3', 
+      name: 'Chicken Salad', 
+      description: 'A nutritious and fresh chicken salad perfect for any time.',
+      summary: 'HIGH PROTEIN MEAL',
+      price: 12.50, 
+      image: 'https://i.ibb.co/NdWmCJTb/image.png', 
+      category: 'lunch',
+      ingredients: 'Fresh tomatoes, cucumbers, grilled chicken breast, lettuce, and almonds. Dressing: Fresh lemon juice and a pinch of salt.',
+      nutrition: {
+        servingSize: '1 cup (salad)',
+        energy: '80 kJ',
+        protein: '23 g',
+        carbs: '10 g',
+        fat: '15 g'
+      },
+      caution: 'this item contains items that may cause allergies such as nuts.'
+    },
     { id: 'm1', name: 'Oatmeal with Almonds', description: 'A light and energetic start to your day.', price: 8.50, image: 'https://picsum.photos/id/1080/400/300', category: 'breakfast' },
     { id: 'm2', name: 'Avocado Toast', description: 'Fresh avocado on whole wheat bread with seeds.', price: 9.00, image: 'https://picsum.photos/id/493/400/300', category: 'breakfast' },
-    { id: 'm3', name: 'Grilled Chicken Salad', description: 'Fresh greens, grilled chicken, and a light vinaigrette.', price: 12.50, image: 'https://picsum.photos/id/23/400/300', category: 'lunch' },
     { id: 'm4', name: 'Quinoa Bowl', description: 'A hearty bowl of quinoa with roasted vegetables.', price: 11.00, image: 'https://picsum.photos/id/25/400/300', category: 'lunch' },
     { id: 'm5', name: 'Salmon with Asparagus', description: 'Pan-seared salmon served with fresh asparagus.', price: 15.00, image: 'https://picsum.photos/id/31/400/300', category: 'dinner' },
     { id: 'm6', name: 'Turkey Meatballs', description: 'Lean turkey meatballs with zucchini noodles.', price: 13.50, image: 'https://picsum.photos/id/48/400/300', category: 'dinner' },
@@ -250,6 +267,15 @@ export const TRANSLATIONS = {
     total: 'Total:',
     checkout: 'Checkout',
     add: 'Add',
+    ingredients: 'Ingredients',
+    nutritionFacts: 'Nutrition Facts',
+    caution: 'Caution',
+    servingSize: 'Serving size',
+    energy: 'Energy',
+    protein: 'Protein',
+    carbohydrates: 'Carbohydrates',
+    fat: 'Fat',
+    addToCart: 'Add to Cart',
 
     // Stats
     yourProgress: 'Your Progress',
@@ -503,6 +529,15 @@ export const TRANSLATIONS = {
     total: 'المجموع:',
     checkout: 'الدفع',
     add: 'إضافة',
+    ingredients: 'المكونات',
+    nutritionFacts: 'الحقائق الغذائية',
+    caution: 'تنبيه',
+    servingSize: 'حجم الحصة',
+    energy: 'الطاقة',
+    protein: 'البروتين',
+    carbohydrates: 'الكربوهيدرات',
+    fat: 'الدهون',
+    addToCart: 'أضف للسلة',
 
     // Stats
     yourProgress: 'تقدمك',

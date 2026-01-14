@@ -21,7 +21,8 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
         isLanguageSelected, 
         setIsLanguageSelected,
         translations,
-        isActionLoading
+        isActionLoading,
+        isLockedOut
     } = useAppContext();
     const [step, setStep] = useState<OnboardingStep>('language');
     const [regStep, setRegStep] = useState(1);
@@ -88,7 +89,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
         const progress = (regStep / totalRegSteps) * 100;
 
         const isStepValid = () => {
-            if (isActionLoading) return false;
+            if (isActionLoading || isLockedOut) return false;
             switch (regStep) {
                 case 1: return userFormData.phone.length > 5;
                 case 2: return userFormData.password.length >= 6;
@@ -190,6 +191,11 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                         <div className="bg-brand-green h-2 rounded-full transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }}></div>
                     </div>
                 </div>
+                {isLockedOut && (
+                    <p className="text-xs text-center text-red-500 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 mb-4 font-bold">
+                        {language === Language.AR ? "محاولات كثيرة جداً. يرجى الانتظار دقيقة." : "Too many attempts. Please wait 1 minute."}
+                    </p>
+                )}
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
                     {t.registrationNote}
                 </p>
@@ -198,17 +204,17 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                 </div>
                 <div className="mt-6 flex gap-4">
                     <button 
-                        disabled={isActionLoading}
+                        disabled={isActionLoading || isLockedOut}
                         onClick={() => regStep > 1 ? setRegStep(s => s - 1) : setStep('login')}
-                        className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                        className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
                     >
                         {t.back}
                     </button>
                     
                     {regStep < totalRegSteps ? (
-                        <button onClick={nextRegStep} disabled={!isStepValid()} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">{t.next}</button>
+                        <button onClick={nextRegStep} disabled={!isStepValid() || isLockedOut} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">{t.next}</button>
                     ) : (
-                        <button onClick={handleUserRegister} disabled={!isStepValid()} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={handleUserRegister} disabled={!isStepValid() || isLockedOut} className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
                             {isActionLoading ? '...' : t.completeRegistration}
                         </button>
                     )}
@@ -233,20 +239,25 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                 return (
                     <div className="animate-fade-in w-full text-center">
                         <h2 className="text-2xl font-bold mb-4">{t.loginToYourAccount}</h2>
+                        {isLockedOut && (
+                             <p className="text-xs text-center text-red-500 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 mb-4 font-bold">
+                                {language === Language.AR ? "محاولات كثيرة جداً. يرجى الانتظار قليلاً." : "Too many attempts. Please wait a bit."}
+                             </p>
+                        )}
                         <input type="tel" name="phone" value={userFormData.phone} onChange={handleInputChange} placeholder={t.phonePlaceholder} className="w-full p-3 mb-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
                         <input type="password" name="password" value={userFormData.password} onChange={handleInputChange} placeholder={t.passwordPlaceholder} className="w-full p-3 rounded-lg border dark:bg-dark-card dark:border-gray-600 focus:ring-2 focus:ring-brand-green outline-none" />
                         
                         <div className="flex gap-4 mt-4">
                             <button 
-                                disabled={isActionLoading}
+                                disabled={isActionLoading || isLockedOut}
                                 onClick={() => loginAsGuest()}
-                                className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                                className="w-1/3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
                             >
                                 {t.back}
                             </button>
                             <button 
                                 onClick={handleLogin} 
-                                disabled={isActionLoading}
+                                disabled={isActionLoading || isLockedOut}
                                 className="w-2/3 bg-brand-green text-brand-green-dark py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50"
                             >
                                 {isActionLoading ? '...' : t.login}
@@ -254,7 +265,7 @@ const OnboardingAndAuth: React.FC<OnboardingAndAuthProps> = ({ mode = 'full' }) 
                         </div>
                         
                         <div className="my-4 text-gray-500">{t.or}</div>
-                        <button onClick={() => setStep('register')} className="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition">{t.registerNewAccount}</button>
+                        <button onClick={() => setStep('register')} disabled={isLockedOut} className="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50">{t.registerNewAccount}</button>
                     </div>
                 );
             case 'register':

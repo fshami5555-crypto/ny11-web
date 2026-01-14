@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { MarketItem, MarketCategory } from '../types';
+import { MarketItem, MarketCategory, NutritionFacts } from '../types';
 import { useAppContext } from '../context/AppContext';
 
 const CartModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
@@ -72,9 +72,8 @@ const CartModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen,
     );
 };
 
-
-const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
-    const { addToCart, showToast, language, currentUser, logout, translations } = useAppContext();
+const MarketItemDetail: React.FC<{ item: MarketItem; onClose: () => void }> = ({ item, onClose }) => {
+    const { language, translations, addToCart, showToast, currentUser, logout } = useAppContext();
     const t = translations[language];
 
     const handleAddToCart = () => {
@@ -88,7 +87,106 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
     };
 
     return (
-        <div className="group bg-white dark:bg-dark-card rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden border border-transparent hover:border-brand-green/30 animate-fade-in">
+        <div className="fixed inset-0 bg-gray-100/95 dark:bg-dark-bg/95 z-[60] overflow-y-auto animate-fade-in p-4 md:p-12 block">
+            <div className="max-w-4xl w-full mx-auto bg-white dark:bg-dark-card rounded-[3rem] shadow-2xl relative min-h-screen md:min-h-0 mb-12">
+                
+                {/* Close Button - Enhanced visibility */}
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-6 right-6 z-50 w-12 h-12 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all"
+                    title={t.close}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <div className="p-6 md:p-12">
+                    {/* Top Section: Title & Image */}
+                    <div className="flex flex-col md:flex-row gap-10 mb-12 relative">
+                        <div className="w-full md:w-1/2 relative group">
+                            <img src={item.image} alt={item.name} className="w-full h-[350px] md:h-[450px] object-cover rounded-[2.5rem] shadow-xl group-hover:scale-[1.01] transition-transform duration-500" />
+                            {item.summary && (
+                                <div className="absolute -bottom-6 -right-6 md:right-0 bg-gray-200 dark:bg-gray-700 p-6 rounded-full shadow-2xl flex flex-col items-center justify-center text-center w-44 h-44 border-4 border-white dark:border-dark-card animate-float">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Description:</span>
+                                    <span className="text-sm font-black text-gray-900 dark:text-white leading-tight">{item.summary}</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="w-full md:w-1/2 flex flex-col justify-center text-center md:text-left pt-6 md:pt-0">
+                            <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter text-gray-800 dark:text-white mb-6 lowercase leading-tight">{item.name}</h1>
+                            <div className="flex flex-col items-center md:items-start gap-6">
+                                <p className="text-5xl font-black text-brand-green">${item.price.toFixed(2)}</p>
+                                <button 
+                                    onClick={handleAddToCart}
+                                    className="w-full md:w-auto bg-brand-green text-white px-12 py-5 rounded-full font-bold text-xl hover:shadow-glow transition-all transform hover:-translate-y-1 active:translate-y-0"
+                                >
+                                    {t.addToCart}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-8">
+                        {/* Ingredients Section */}
+                        {item.ingredients && (
+                            <div className="animate-slide-up" style={{animationDelay: '0.1s'}}>
+                                <h3 className="text-xl font-black underline mb-4 text-gray-700 dark:text-gray-300">{t.ingredients}:</h3>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2rem] text-gray-600 dark:text-gray-400 font-medium text-lg leading-relaxed shadow-sm">
+                                    {item.ingredients}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Nutrition Facts Section */}
+                        {item.nutrition && (
+                            <div className="animate-slide-up" style={{animationDelay: '0.2s'}}>
+                                <h3 className="text-xl font-black underline mb-4 text-gray-700 dark:text-gray-300">{t.nutritionFacts}</h3>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2rem] space-y-4 text-gray-600 dark:text-gray-400 font-medium text-lg shadow-sm">
+                                    <p className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2"><span className="font-black text-gray-800 dark:text-white">{t.servingSize}:</span> {item.nutrition.servingSize}</p>
+                                    <p className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2"><span className="font-black text-gray-800 dark:text-white">{t.energy}:</span> {item.nutrition.energy}</p>
+                                    <p className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2"><span className="font-black text-gray-800 dark:text-white">{t.protein}:</span> {item.nutrition.protein}</p>
+                                    <p className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2"><span className="font-black text-gray-800 dark:text-white">{t.carbohydrates} (CHO):</span> {item.nutrition.carbs}</p>
+                                    <p className="flex justify-between"><span className="font-black text-gray-800 dark:text-white">{t.fat}:</span> {item.nutrition.fat}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Caution Section */}
+                        {item.caution && (
+                            <div className="animate-slide-up pb-6" style={{animationDelay: '0.3s'}}>
+                                <div className="bg-red-50/50 dark:bg-red-900/10 p-8 rounded-[2rem] text-gray-600 dark:text-gray-400 font-medium text-lg leading-relaxed border border-red-100 dark:border-red-900/20">
+                                    <span className="font-black underline text-red-600 dark:text-red-400 mr-2">{t.caution}:</span> {item.caution}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MarketItemCard: React.FC<{ item: MarketItem; onSelect: (item: MarketItem) => void }> = ({ item, onSelect }) => {
+    const { addToCart, showToast, language, currentUser, logout, translations } = useAppContext();
+    const t = translations[language];
+
+    const handleAddToCart = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (currentUser?.id === 'guest') {
+            showToast(t.loginToContinue, 'error');
+            logout();
+            return;
+        }
+        addToCart(item.id);
+        showToast(`${item.name} added to cart!`, 'success');
+    };
+
+    return (
+        <div 
+            onClick={() => onSelect(item)}
+            className="group cursor-pointer bg-white dark:bg-dark-card rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden border border-transparent hover:border-brand-green/30 animate-fade-in"
+        >
             <div className="relative h-56 overflow-hidden">
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -105,11 +203,11 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
                     <span className="font-black text-lg text-brand-green">${item.price.toFixed(2)}</span>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{item.description}</p>
-                <div className="mt-4">
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-800 text-gray-400 px-2 py-1 rounded-md">
-                        {item.category}
+                {item.summary && (
+                    <span className="mt-3 inline-block text-[10px] font-black uppercase tracking-widest text-brand-green bg-brand-green/10 px-3 py-1 rounded-full">
+                        {item.summary}
                     </span>
-                </div>
+                )}
             </div>
         </div>
     );
@@ -117,6 +215,7 @@ const MarketItemCard: React.FC<{ item: MarketItem }> = ({ item }) => {
 
 const Market: React.FC = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
     const [activeCategory, setActiveCategory] = useState<MarketCategory>('all');
     const { cart, language, currentUser, logout, showToast, marketItems, translations } = useAppContext();
     const t = translations[language];
@@ -179,7 +278,7 @@ const Market: React.FC = () => {
             {filteredItems.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredItems.map(item => (
-                        <MarketItemCard key={item.id} item={item} />
+                        <MarketItemCard key={item.id} item={item} onSelect={setSelectedItem} />
                     ))}
                 </div>
             ) : (
@@ -190,6 +289,7 @@ const Market: React.FC = () => {
             )}
 
             <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+            {selectedItem && <MarketItemDetail item={selectedItem} onClose={() => setSelectedItem(null)} />}
         </div>
     );
 };

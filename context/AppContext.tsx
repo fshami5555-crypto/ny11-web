@@ -47,6 +47,7 @@ interface AppContextType {
     knowledgeBase: KnowledgeBaseItem[];
     isLoading: boolean;
     isActionLoading: boolean;
+    isLockedOut: boolean;
     login: (phone: string, password?: string) => Promise<boolean>;
     loginAsGuest: () => void;
     logout: () => void;
@@ -102,6 +103,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [isLockedOut, setIsLockedOut] = useState(false);
 
     const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         const id = Date.now();
@@ -111,7 +113,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }, 4000);
     }, []);
 
-    const syncAdminData = async (uid: string, phone: string) => {
+    const syncAdminData = async (uid: string, phone: string): Promise<User> => {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
         const email = `${phone}@ny11.com`;
@@ -135,8 +137,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (fbUser) {
                 const phone = fbUser.email?.split('@')[0] || '';
                 if (ADMIN_PHONES.includes(phone)) {
+                    setCurrentUser({ id: fbUser.uid, name: "Admin", email: fbUser.email || '', phone, role: UserRole.ADMIN });
                     const adminData = await syncAdminData(fbUser.uid, phone);
-                    setCurrentUser(adminData);
+                    setCurrentUser({ ...adminData, role: UserRole.ADMIN });
                 } else {
                     const userDoc = await getDoc(doc(db, "users", fbUser.uid));
                     if (userDoc.exists()) {
@@ -175,6 +178,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [currentUser]);
 
     const login = async (phone: string, password?: string) => {
+        if (isLockedOut) {
+            showToast(language === Language.AR ? "النظام مغلق مؤقتاً لحمايتك. حاول لاحقاً." : "System temporarily locked for your safety. Try later.", "error");
+            return false;
+        }
+
         setIsActionLoading(true);
         try {
             const trimmedPhone = phone.trim();
@@ -184,8 +192,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             
             if (ADMIN_PHONES.includes(trimmedPhone)) {
+                setCurrentUser({ 
+                    id: userCredential.user.uid, 
+                    name: "Admin", 
+                    email, 
+                    phone: trimmedPhone, 
+                    role: UserRole.ADMIN 
+                });
                 const adminData = await syncAdminData(userCredential.user.uid, trimmedPhone);
-                setCurrentUser(adminData);
+                setCurrentUser({ ...adminData, role: UserRole.ADMIN });
             } else {
                 const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
                 if (userDoc.exists()) {
@@ -193,11 +208,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 }
             }
             
-            showToast(language === Language.AR ? "مرحباً بك مجدداً" : "Welcome back", "success");
+            showToast(language === Language.AR ? "تم تسجيل الدخول بنجاح" : "Login successful", "success");
             return true;
         } catch (error: any) {
             console.error("Login Error:", error);
-            showToast(language === Language.AR ? "رقم الهاتف أو كلمة المرور غير صحيحة" : "Invalid login credentials", "error");
+            let msg = language === Language.AR ? "بيانات الدخول غير صحيحة" : "Invalid credentials";
+            
+            if (error.code === 'auth/too-many-requests') {
+                setIsLockedOut(true);
+                msg = language === Language.AR 
+                    ? "تم حظر محاولاتك مؤقتاً بسبب تكرار الأخطاء. يرجى الانتظار 5 دقائق قبل المحاولة مجدداً." 
+                    : "Your attempts are temporarily blocked due to multiple errors. Please wait 5 minutes before trying again.";
+                
+                // Reset lockout after some time
+                setTimeout(() => setIsLockedOut(false), 60000); 
+            }
+            
+            showToast(msg, "error");
             return false;
         } finally {
             setIsActionLoading(false);
@@ -224,7 +251,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setCurrentUser(newUser);
             showToast(language === Language.AR ? "تم إنشاء الحساب بنجاح" : "Account created", "success");
         } catch (error: any) {
-            showToast(error.message, "error");
+            let msg = error.message;
+            if (error.code === 'auth/too-many-requests') {
+                msg = language === Language.AR 
+                    ? "لقد قمت بعمليات تسجيل متكررة. انتظر بضع دقائق." 
+                    : "Too many registration attempts. Please wait.";
+            }
+            showToast(msg, "error");
         } finally {
             setIsActionLoading(false);
         }
@@ -236,6 +269,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const loginAsGuest = () => {
+        if (currentUser && currentUser.role === UserRole.ADMIN) return;
         setCurrentUser({ id: 'guest', name: translations[language].guest, email: '', phone: '', role: UserRole.USER });
     };
 
@@ -309,7 +343,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         <AppContext.Provider value={{
             currentUser, users, coaches, language, theme, cart, toasts, plan, notifications,
             isLanguageSelected, marketItems, bannerImages, siteConfig, translations, knowledgeBase, isLoading, isActionLoading,
-            login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
+            isLockedOut, login, loginAsGuest, logout, register, registerCoach, updateCoach, setLanguage, setIsLanguageSelected,
             setTheme, addToCart, removeFromCart, clearCart, showToast, updatePlan, updateDailyPlan,
             updateQuoteStatus, updateUserProfile, showNotification, dismissNotification, addMarketItem,
             updateMarketItem, deleteMarketItem, addBannerImage, deleteBannerImage, updateBannerImage,

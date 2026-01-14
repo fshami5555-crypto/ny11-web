@@ -24,15 +24,16 @@ const AppContent: React.FC = () => {
         }
     }, [language, theme]);
 
-    if (showSplash || isLoading) {
-        return <SplashScreen />;
-    }
-
+    // Priority Check: If we are logged in as Admin, skip everything else
     if (currentUser?.role === UserRole.ADMIN) {
         return <Admin />;
     }
 
-    // Always render MainApp, authentication handled within
+    if (showSplash || isLoading) {
+        return <SplashScreen />;
+    }
+
+    // Default view for users and guests
     return <MainApp />;
 };
 

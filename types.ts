@@ -117,13 +117,25 @@ export interface Plan {
 
 export type MarketCategory = 'all' | 'breakfast' | 'lunch' | 'dinner' | 'drink' | 'snack';
 
+export interface NutritionFacts {
+  servingSize: string;
+  energy: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+}
+
 export interface MarketItem {
   id: string;
   name: string;
   description: string;
+  summary?: string; // e.g., "HIGH PROTEIN MEAL"
   price: number;
   image: string;
   category: MarketCategory;
+  ingredients?: string;
+  nutrition?: NutritionFacts;
+  caution?: string;
 }
 
 export interface CartItem extends MarketItem {
